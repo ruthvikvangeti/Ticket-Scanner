@@ -16,54 +16,24 @@
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
-      perspective: 900px;
     }
-    h1 { font-size: 20px; color: #333; margin-bottom: 20px; text-align: center; }
     #scanInput { opacity: 0; position: absolute; pointer-events: none; }
 
     #status {
-      width: 100%; max-width: 400px; min-height: 130px; padding: 24px;
-      border-radius: 22px; text-align: center; font-size: 18px; font-weight: bold;
-      margin-bottom: 20px; color: #1a1a1a;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(240, 244, 255, 0.55);
-      backdrop-filter: blur(26px) saturate(200%);
-      -webkit-backdrop-filter: blur(26px) saturate(200%);
-      border: 1px solid rgba(255,255,255,0.6);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8);
-      transform-style: preserve-3d;
+      width: 100%; max-width: 400px; height: 220px;
+      margin-bottom: 20px;
       position: relative;
-      overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
     }
-    #scanFill {
+    #glassCanvas { width: 100%; height: 100%; display: block; }
+    #statusText {
       position: absolute;
-      left: 0; top: 0; bottom: 0; width: 0%;
-      background: linear-gradient(90deg, rgba(52,168,83,0.35), rgba(16,185,129,0.55));
-      transition: width 0.8s cubic-bezier(0.65, 0, 0.35, 1);
-      z-index: 0;
+      font-size: 18px; font-weight: bold; color: #1a1a1a;
+      text-shadow: 0 1px 3px rgba(255,255,255,0.8);
+      pointer-events: none;
+      z-index: 1;
     }
-    #status.complete #scanFill {
-      width: 100% !important;
-      background: linear-gradient(90deg, rgba(52,168,83,0.85), rgba(16,185,129,0.9));
-    }
-    #statusText { position: relative; z-index: 1; text-shadow: 0 1px 2px rgba(255,255,255,0.5); }
-    #status.complete #statusText { color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.2); }
-    #status.armed { background: rgba(0, 188, 212, 0.4); }
-    #status.success { background: rgba(52, 168, 83, 0.4); }
-    #status.error { background: rgba(234, 67, 53, 0.5); }
-    #status.processing { background: rgba(251, 188, 4, 0.45); }
-    @keyframes fullChargeGlow {
-      0%, 100% { box-shadow: 0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8), 0 0 0px rgba(52,168,83,0); }
-      50% { box-shadow: 0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8), 0 0 30px rgba(52,168,83,0.6); }
-    }
-    #status.complete { animation: fullChargeGlow 1.4s ease-in-out 2; }
-
-    @keyframes flipVertical {
-      0%   { transform: rotateX(0deg);   box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-      50%  { transform: rotateX(-92deg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-      100% { transform: rotateX(0deg);   box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-    }
-    .flipping { animation: flipVertical 0.6s cubic-bezier(0.65, 0, 0.35, 1); }
 
     .actionRow { display: flex; gap: 12px; width: 100%; max-width: 400px; }
     button {
@@ -115,6 +85,14 @@
     }
     #configBox input { width: 100%; padding: 8px; margin-top: 6px; box-sizing: border-box; }
   </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
 </head>
 <body>
   <div id="configBox">
@@ -124,7 +102,7 @@
   </div>
 
   <div id="status">
-    <div id="scanFill"></div>
+    <canvas id="glassCanvas"></canvas>
     <span id="statusText">Ready to scan</span>
   </div>
   <input type="text" id="scanInput" autocomplete="off" autocorrect="off" autocapitalize="off">
@@ -133,6 +111,92 @@
     <button id="endDayBtn" onclick="handleEndDay(event)">End of Day</button>
     <button id="resetBtn" onclick="handleReset(event)">Reset Day</button>
   </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+    var statusEl = document.getElementById('status');
+    var canvas = document.getElementById('glassCanvas');
+
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+    camera.position.set(0, 0, 8);
+
+    var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+
+    var pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    var light1 = new THREE.DirectionalLight(0xffffff, 1.2);
+    light1.position.set(3, 5, 4);
+    scene.add(light1);
+    var light2 = new THREE.DirectionalLight(0xffffff, 0.6);
+    light2.position.set(-4, -2, 3);
+    scene.add(light2);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+
+    // ---- Outer glass capsule ----
+    var glassGeo = new THREE.CapsuleGeometry(1.6, 1.4, 8, 24);
+    var glassMat = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      transmission: 1,
+      roughness: 0.04,
+      thickness: 1.2,
+      ior: 1.5,
+      clearcoat: 1,
+      clearcoatRoughness: 0.05,
+      envMapIntensity: 1.2
+    });
+    var glass = new THREE.Mesh(glassGeo, glassMat);
+    scene.add(glass);
+
+    // ---- Inner liquid (green), clipped to a rising height via scale ----
+    var liquidGeo = new THREE.CapsuleGeometry(1.42, 1.24, 8, 24);
+    var liquidMat = new THREE.MeshPhysicalMaterial({
+      color: 0x22c55e,
+      transmission: 0.55,
+      roughness: 0.15,
+      thickness: 1.0,
+      ior: 1.33,
+      envMapIntensity: 1.0
+    });
+    var liquid = new THREE.Mesh(liquidGeo, liquidMat);
+    liquid.scale.y = 0.001; // starts empty
+    liquid.position.y = -1.5; // anchored at the bottom, grows upward
+    scene.add(liquid);
+    // Re-anchor pivot: since scaling a centered geometry scales both ways,
+    // we offset position to compensate so it visually fills bottom-up.
+    function setLiquidLevel(fraction) {
+      var f = Math.max(0.001, Math.min(1, fraction));
+      liquid.scale.y = f;
+      liquid.position.y = -1.5 * (1 - f);
+    }
+
+    function resizeRenderer() {
+      var w = statusEl.clientWidth;
+      var h = statusEl.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', resizeRenderer);
+    resizeRenderer();
+
+    var clock = new THREE.Clock();
+    function animate() {
+      requestAnimationFrame(animate);
+      var t = clock.getElapsedTime();
+      glass.rotation.y = Math.sin(t * 0.3) * 0.15;
+      liquid.rotation.y = glass.rotation.y;
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.setLiquidLevel = setLiquidLevel;
+  </script>
 
   <script>
     var API_URL = localStorage.getItem('appsScriptUrl') || '';
@@ -151,7 +215,6 @@
     var input = document.getElementById('scanInput');
     var statusBox = document.getElementById('status');
     var statusText = document.getElementById('statusText');
-    var scanFill = document.getElementById('scanFill');
     var endDayBtn = document.getElementById('endDayBtn');
     var resetBtn = document.getElementById('resetBtn');
 
@@ -160,40 +223,15 @@
       callApi({ action: 'progress' }).then(function(result) {
         var total = result.totalGames || 0;
         var done = result.scannedToday || 0;
-        var pct = total > 0 ? Math.round((done / total) * 100) : 0;
-
-        scanFill.style.width = pct + '%';
-
-        if (total > 0 && done >= total) {
-          statusBox.classList.add('complete');
-        } else {
-          statusBox.classList.remove('complete');
-        }
+        var pct = total > 0 ? done / total : 0;
+        if (window.setLiquidLevel) window.setLiquidLevel(pct);
       }).catch(function() { /* progress is a nice-to-have, fail silently */ });
     }
 
     function keepFocus() { input.focus(); }
 
-    // Flips the box top-to-bottom, swapping its color/text at the exact
-    // midpoint (when it's edge-on to the viewer), so it looks like it flips
-    // over like a page turning to reveal a new colored face.
-    function flip(el, durationMs, onMidpoint) {
-      el.classList.remove('flipping');
-      void el.offsetWidth; // force reflow so the animation can restart cleanly
-      el.classList.add('flipping');
-      setTimeout(function() {
-        if (onMidpoint) onMidpoint();
-      }, durationMs / 2);
-      setTimeout(function() {
-        el.classList.remove('flipping');
-      }, durationMs);
-    }
-
     statusBox.addEventListener('click', function() {
-      flip(statusBox, 600, function() {
-        statusBox.className = 'armed';
-        statusText.textContent = 'Reading...';
-      });
+      statusText.textContent = 'Reading...';
       keepFocus();
     });
 
@@ -210,7 +248,6 @@
       return new Promise(function(resolve, reject) {
         if (!API_URL) {
           statusText.textContent = 'Please set your Apps Script URL above first';
-          statusBox.className = 'error';
           document.getElementById('configBox').style.display = 'block';
           reject('no url');
           return;
@@ -249,98 +286,52 @@
 
     function submitScan(code) {
       if (!code) { keepFocus(); return; }
-      flip(statusBox, 600, function() {
-        statusText.textContent = 'Processing...';
-        statusBox.className = 'processing';
-      });
-
       callApi({ action: 'scan', code: code })
         .then(function(result) {
-          flip(statusBox, 600, function() {
-            statusText.textContent = result.message;
-            statusBox.className = result.success ? 'success' : 'error';
-          });
           refreshProgress();
-          setTimeout(function() {
-            flip(statusBox, 600, function() {
-              statusText.textContent = statusBox.classList.contains('complete')
-                ? '\u2728 All games scanned!' : 'Ready to scan';
-              statusBox.className = statusBox.classList.contains('complete') ? 'complete' : '';
-            });
-          }, 2000);
           keepFocus();
         })
         .catch(function(err) {
-          flip(statusBox, 600, function() {
-            statusText.textContent = 'Error: ' + err;
-            statusBox.className = 'error';
-          });
           keepFocus();
         });
     }
 
     function handleEndDay(event) {
-      flip(endDayBtn, 650);
+      endDayBtn.classList.remove('flipping'); void endDayBtn.offsetWidth; endDayBtn.classList.add('flipping');
+      setTimeout(function() { endDayBtn.classList.remove('flipping'); }, 650);
       if (!confirm('Close out the day? This archives everything and rolls forward to tomorrow.')) return;
-      flip(statusBox, 600, function() {
-        statusText.textContent = 'Running End of Day...';
-        statusBox.className = 'processing';
-      });
+      statusText.textContent = 'Running End of Day...';
       callApi({ action: 'endday' })
         .then(function(result) {
-          flip(statusBox, 600, function() {
-            statusText.textContent = result.message;
-            statusBox.className = 'success';
-          });
+          statusText.textContent = result.message;
           refreshProgress();
-          setTimeout(function() {
-            flip(statusBox, 600, function() {
-              statusText.textContent = 'Ready to scan';
-              statusBox.className = '';
-            });
-          }, 3000);
+          setTimeout(function() { statusText.textContent = 'Ready to scan'; }, 3000);
           keepFocus();
         })
         .catch(function(err) {
-          flip(statusBox, 600, function() {
-            statusText.textContent = 'Error: ' + err;
-            statusBox.className = 'error';
-          });
+          statusText.textContent = 'Error: ' + err;
         });
     }
 
     function handleReset(event) {
-      flip(resetBtn, 650);
+      resetBtn.classList.remove('flipping'); void resetBtn.offsetWidth; resetBtn.classList.add('flipping');
+      setTimeout(function() { resetBtn.classList.remove('flipping'); }, 650);
       if (!confirm('Reset back to last End of Day? This undoes today\'s scans.')) return;
-      flip(statusBox, 600, function() {
-        statusText.textContent = 'Resetting...';
-        statusBox.className = 'processing';
-      });
+      statusText.textContent = 'Resetting...';
       callApi({ action: 'reset' })
         .then(function(result) {
-          flip(statusBox, 600, function() {
-            statusText.textContent = result.message;
-            statusBox.className = result.success ? 'success' : 'error';
-          });
+          statusText.textContent = result.message;
           refreshProgress();
-          setTimeout(function() {
-            flip(statusBox, 600, function() {
-              statusText.textContent = 'Ready to scan';
-              statusBox.className = '';
-            });
-          }, 2500);
+          setTimeout(function() { statusText.textContent = 'Ready to scan'; }, 2500);
           keepFocus();
         })
         .catch(function(err) {
-          flip(statusBox, 600, function() {
-            statusText.textContent = 'Error: ' + err;
-            statusBox.className = 'error';
-          });
+          statusText.textContent = 'Error: ' + err;
         });
     }
 
     keepFocus();
-    refreshProgress();
+    setTimeout(refreshProgress, 800); // slight delay so the module script's setLiquidLevel is ready
   </script>
 </body>
 </html>
