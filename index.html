@@ -1,1 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scratch-Off Scanner</title>
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="icon" href="icon.png">
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, system-ui, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    h1 { font-size: 20px; color: #333; margin-bottom: 20px; text-align: center; }
+    #scanInput { opacity: 0; position: absolute; pointer-events: none; }
+    #status {
+      width: 100%; max-width: 400px; min-height: 120px; padding: 24px;
+      border-radius: 16px; text-align: center; font-size: 18px; font-weight: bold;
+      margin-bottom: 20px; background: #4285F4; color: white;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+    #status.tapped { transform: scale(0.96); background: #2c5cbd; }
+    #status.success { background: #34A853; }
+    #status.error { background: #EA4335; }
+    #status.processing { background: #FBBC04; color: #333; }
+    .actionRow { display: flex; gap: 12px; width: 100%; max-width: 400px; }
+    button {
+      flex: 1; padding: 18px; font-size: 16px; font-weight: bold; color: white;
+      border: none; border-radius: 12px; cursor: pointer;
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+    button.pressed { transform: scale(0.93); filter: brightness(0.85); }
+    #endDayBtn { background: #34A853; }
+    #resetBtn { background: #EA4335; }
+    #cameraBtn {
+      width: 100%; max-width: 400px; padding: 14px; margin-bottom: 16px;
+      background: #673AB7; color: white; border: none; border-radius: 12px;
+      font-size: 15px; font-weight: bold; cursor: pointer;
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+    #cameraBtn.pressed { transform: scale(0.96); filter: brightness(0.85); }
+    #reader { width: 100%; max-width: 400px; margin-bottom: 16px; display: none; border-radius: 16px; overflow: hidden; }
+    #reader.active { display: block; }
+    #log { width: 100%; max-width: 400px; margin-top: 20px; font-size: 13px; color: #666; }
+    #log div { padding: 6px 0; border-bottom: 1px solid #eee; }
+    #configBox {
+      width: 100%; max-width: 400px; margin-bottom: 16px; padding: 12px;
+      background: white; border-radius: 12px; border: 1px solid #ddd; font-size: 13px;
+    }
+    #configBox input { width: 100%; padding: 8px; margin-top: 6px; box-sizing: border-box; }
+  </style>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+  <h1>📷 Scratch-Off Scanner</h1>
 
+  <div id="configBox">
+    <div>Apps Script URL (one-time setup):</div>
+    <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+    <button onclick="saveApiUrl()" style="margin-top:8px; background:#4285F4; padding:10px;">Save URL</button>
+  </div>
+
+  <div id="status">Ready to scan</div>
+  <input type="text" id="scanInput" autocomplete="off" autocorrect="off" autocapitalize="off">
+
+  <button id="cameraBtn" onclick="toggleCamera()">📸 Use Phone Camera Instead</button>
+  <div id="reader"></div>
+
+  <div class="actionRow">
+    <button id="endDayBtn" onclick="handleEndDay()">✅ End of Day</button>
+    <button id="resetBtn" onclick="handleReset()">🔄 Reset Day</button>
+  </div>
+
+  <div id="log"></div>
+
+  <script>
+    var API_URL = localStorage.getItem('appsScriptUrl') || '';
+    document.getElementById('apiUrlInput').value = API_URL;
+    if (API_URL) document.getElementById('configBox').style.display = 'none';
+
+    function saveApiUrl() {
+      var url = document.getElementById('apiUrlInput').value.trim();
+      if (!url) return;
+      localStorage.setItem('appsScriptUrl', url);
+      API_URL = url;
+      document.getElementById('configBox').style.display = 'none';
+      statusBox.textContent = 'Saved. Ready to scan';
+    }
+
+    var input = document.getElementById('scanInput');
+    var statusBox = document.getElementById('status');
+    var log = document.getElementById('log');
+    var endDayBtn = document.getElementById('endDayBtn');
+    var resetBtn = document.getElementById('resetBtn');
+
+    function keepFocus() { input.focus(); }
+
+    statusBox.addEventListener('click', function() {
+      statusBox.classList.add('tapped');
+      setTimeout(function() { statusBox.classList.remove('tapped'); }, 150);
+      keepFocus();
+    });
+
+    window.addEventListener('load', keepFocus);
+    window.addEventListener('focus', keepFocus);
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); submitScan(input.value.trim()); input.value = ''; }
+    });
+
+    function callApi(params) {
+      if (!API_URL) {
+        statusBox.textContent = 'Please set your Apps Script URL above first';
+        statusBox.className = 'error';
+        document.getElementById('configBox').style.display = 'block';
+        return Promise.reject('no url');
+      }
+      var url = API_URL + '?' + new URLSearchParams(params).toString();
+      return fetch(url).then(function(r) { return r.json(); });
+    }
+
+    function submitScan(code) {
+      if (!code) { keepFocus(); return; }
+      statusBox.textContent = 'Processing...';
+      statusBox.className = 'processing';
+
+      callApi({ action: 'scan', code: code })
+        .then(function(result) {
+          statusBox.textContent = result.message;
+          statusBox.className = result.success ? 'success' : 'error';
+          addLogLine(result.message, result.success);
+          setTimeout(function() {
+            statusBox.textContent = 'Ready to scan';
+            statusBox.className = '';
+          }, 2000);
+          keepFocus();
+        })
+        .catch(function(err) {
+          statusBox.textContent = 'Error: ' + err;
+          statusBox.className = 'error';
+          keepFocus();
+        });
+    }
+
+    function addLogLine(message, success) {
+      var div = document.createElement('div');
+      var time = new Date().toLocaleTimeString();
+      div.textContent = time + ' - ' + message;
+      div.style.color = success ? '#34A853' : '#EA4335';
+      log.insertBefore(div, log.firstChild);
+      while (log.children.length > 8) log.removeChild(log.lastChild);
+    }
+
+    function pressAnimation(btn) {
+      btn.classList.add('pressed');
+      setTimeout(function() { btn.classList.remove('pressed'); }, 150);
+    }
+
+    function handleEndDay() {
+      pressAnimation(endDayBtn);
+      if (!confirm('Close out the day? This archives everything and rolls forward to tomorrow.')) return;
+      statusBox.textContent = 'Running End of Day...';
+      statusBox.className = 'processing';
+      callApi({ action: 'endday' })
+        .then(function(result) {
+          statusBox.textContent = result.message;
+          statusBox.className = 'success';
+          setTimeout(function() { statusBox.textContent = 'Ready to scan'; statusBox.className = ''; }, 3000);
+          keepFocus();
+        })
+        .catch(function(err) {
+          statusBox.textContent = 'Error: ' + err;
+          statusBox.className = 'error';
+        });
+    }
+
+    function handleReset() {
+      pressAnimation(resetBtn);
+      if (!confirm('Reset back to last End of Day? This undoes today\'s scans.')) return;
+      statusBox.textContent = 'Resetting...';
+      statusBox.className = 'processing';
+      callApi({ action: 'reset' })
+        .then(function(result) {
+          statusBox.textContent = result.message;
+          statusBox.className = result.success ? 'success' : 'error';
+          if (result.success) log.innerHTML = '';
+          setTimeout(function() { statusBox.textContent = 'Ready to scan'; statusBox.className = ''; }, 2500);
+          keepFocus();
+        })
+        .catch(function(err) {
+          statusBox.textContent = 'Error: ' + err;
+          statusBox.className = 'error';
+        });
+    }
+
+    keepFocus();
+
+    // ---- Camera-based scanning (restricted to ONLY Interleaved 2 of 5) ----
+    var cameraBtn = document.getElementById('cameraBtn');
+    var readerDiv = document.getElementById('reader');
+    var html5QrCode = null;
+    var cameraActive = false;
+
+    function toggleCamera() {
+      cameraBtn.classList.add('pressed');
+      setTimeout(function() { cameraBtn.classList.remove('pressed'); }, 150);
+      if (cameraActive) { stopCamera(); } else { startCamera(); }
+    }
+
+    function startCamera() {
+      readerDiv.classList.add('active');
+      cameraBtn.textContent = '❌ Stop Camera';
+      statusBox.textContent = 'Starting camera...';
+      statusBox.className = 'processing';
+
+      html5QrCode = new Html5Qrcode('reader', {
+        formatsToSupport: [Html5QrcodeSupportedFormats.ITF]
+      });
+
+      html5QrCode.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 280, height: 120 } },
+        function onScanSuccess(decodedText) {
+          submitScan(decodedText);
+        },
+        function onScanFailure() { /* fires continuously while no barcode in view - ignore */ }
+      ).then(function() {
+        cameraActive = true;
+        statusBox.textContent = 'Point camera at the lottery barcode';
+        statusBox.className = '';
+      }).catch(function(err) {
+        statusBox.textContent = 'Camera error: ' + err;
+        statusBox.className = 'error';
+        readerDiv.classList.remove('active');
+        cameraBtn.textContent = '📸 Use Phone Camera Instead';
+      });
+    }
+
+    function stopCamera() {
+      if (html5QrCode) {
+        html5QrCode.stop().then(function() {
+          html5QrCode.clear();
+          readerDiv.classList.remove('active');
+          cameraBtn.textContent = '📸 Use Phone Camera Instead';
+          cameraActive = false;
+          statusBox.textContent = 'Ready to scan';
+          statusBox.className = '';
+          keepFocus();
+        });
+      }
+    }
+  </script>
+</body>
+</html>
