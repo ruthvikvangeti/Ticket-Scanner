@@ -37,6 +37,14 @@
       pointer-events: none;
       z-index: 1;
     }
+    #debugText {
+      position: absolute;
+      bottom: 8px; left: 8px;
+      font-size: 11px; color: #999;
+      background: rgba(255,255,255,0.8);
+      padding: 3px 8px; border-radius: 8px;
+      z-index: 2; pointer-events: none;
+    }
 
     .actionRow { display: flex; gap: 12px; width: 100%; max-width: 480px; flex-shrink: 0; }
     button {
@@ -108,6 +116,7 @@
   <div id="status">
     <canvas id="glassCanvas"></canvas>
     <span id="statusText">Ready to scan</span>
+    <span id="debugText">debug: waiting...</span>
   </div>
   <input type="text" id="scanInput" autocomplete="off" autocorrect="off" autocapitalize="off">
 
@@ -244,12 +253,17 @@
 
     function refreshProgress() {
       if (!API_URL) return;
+      var debugEl = document.getElementById('debugText');
+      debugEl.textContent = 'debug: fetching...';
       callApi({ action: 'progress' }).then(function(result) {
         var total = result.totalGames || 0;
         var done = result.scannedToday || 0;
         var pct = total > 0 ? done / total : 0;
+        debugEl.textContent = 'debug: ' + done + '/' + total + ' = ' + Math.round(pct * 100) + '% | setLiquidLevel=' + (window.setLiquidLevel ? 'ready' : 'NOT READY');
         if (window.setLiquidLevel) window.setLiquidLevel(pct);
-      }).catch(function() { /* progress is a nice-to-have, fail silently */ });
+      }).catch(function(err) {
+        debugEl.textContent = 'debug error: ' + err;
+      });
     }
 
     function keepFocus() { input.focus(); }
