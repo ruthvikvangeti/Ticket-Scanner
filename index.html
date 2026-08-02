@@ -15,12 +15,15 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      min-height: 100vh;
+      height: 100vh;
+      overflow: hidden;
     }
     #scanInput { opacity: 0; position: absolute; pointer-events: none; }
 
     #status {
-      width: 100%; max-width: 400px; height: 220px;
+      width: 100%; max-width: 480px;
+      flex: 1 1 auto;
+      min-height: 0;
       margin-bottom: 20px;
       position: relative;
       display: flex; align-items: center; justify-content: center;
@@ -35,7 +38,7 @@
       z-index: 1;
     }
 
-    .actionRow { display: flex; gap: 12px; width: 100%; max-width: 400px; }
+    .actionRow { display: flex; gap: 12px; width: 100%; max-width: 480px; flex-shrink: 0; }
     button {
       flex: 1; padding: 18px; font-size: 16px; font-weight: bold; color: white;
       border: none; border-radius: 16px; cursor: pointer;
@@ -46,8 +49,8 @@
       transform-style: preserve-3d;
       text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
-    #endDayBtn { background: rgba(52, 168, 83, 0.6); }
-    #resetBtn { background: rgba(234, 67, 53, 0.6); }
+    #endDayBtn { background: rgba(52, 168, 83, 0.92); }
+    #resetBtn { background: rgba(234, 67, 53, 0.92); }
 
     @keyframes flipButtonVertical {
       0%   { transform: rotateX(0deg); }
@@ -55,16 +58,16 @@
       100% { transform: rotateX(0deg); }
     }
     @keyframes breatheBounceGreen {
-      0%   { background: rgba(52, 168, 83, 0.6); animation-timing-function: ease-out; }
-      45%  { background: rgba(143, 217, 172, 0.55); animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.4); }
-      75%  { background: rgba(42, 129, 68, 0.65); }
-      100% { background: rgba(52, 168, 83, 0.6); }
+      0%   { background: rgba(52, 168, 83, 0.92); animation-timing-function: ease-out; }
+      45%  { background: rgba(143, 217, 172, 0.85); animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.4); }
+      75%  { background: rgba(42, 129, 68, 0.95); }
+      100% { background: rgba(52, 168, 83, 0.92); }
     }
     @keyframes breatheBounceRed {
-      0%   { background: rgba(234, 67, 53, 0.6); animation-timing-function: ease-out; }
-      45%  { background: rgba(246, 167, 158, 0.55); animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.4); }
-      75%  { background: rgba(196, 39, 26, 0.65); }
-      100% { background: rgba(234, 67, 53, 0.6); }
+      0%   { background: rgba(234, 67, 53, 0.92); animation-timing-function: ease-out; }
+      45%  { background: rgba(246, 167, 158, 0.85); animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.4); }
+      75%  { background: rgba(196, 39, 26, 0.95); }
+      100% { background: rgba(234, 67, 53, 0.92); }
     }
     #endDayBtn.flipping {
       animation: flipButtonVertical 0.4s cubic-bezier(0.45, 0.05, 0.55, 0.95),
@@ -76,7 +79,8 @@
     }
 
     #configBox {
-      width: 100%; max-width: 400px; margin-bottom: 16px; padding: 12px;
+      width: 100%; max-width: 480px; margin-bottom: 16px; padding: 12px;
+      flex-shrink: 0;
       background: rgba(240, 244, 255, 0.7);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
@@ -153,27 +157,44 @@
     var glass = new THREE.Mesh(glassGeo, glassMat);
     scene.add(glass);
 
-    // ---- Inner liquid (green), clipped to a rising height via scale ----
+    // ---- Inner liquid (green), revealed via a clipping plane for a clean
+    // flat liquid surface - avoids the distortion that scaling a capsule's
+    // rounded ends would cause, and disappears completely at 0%.
+    var LIQUID_BOTTOM = -1.5;
+    var LIQUID_TOP = 1.5;
+
+    var clipPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -LIQUID_BOTTOM);
+    renderer.localClippingEnabled = true;
+
     var liquidGeo = new THREE.CapsuleGeometry(1.42, 1.24, 8, 24);
-    var liquidMat = new THREE.MeshPhysicalMaterial({
-      color: 0x22c55e,
-      transmission: 0.55,
+    var liquidMatNormal = new THREE.MeshPhysicalMaterial({
+      color: 0x34c759,
+      transmission: 0.5,
       roughness: 0.15,
       thickness: 1.0,
       ior: 1.33,
-      envMapIntensity: 1.0
+      envMapIntensity: 1.0,
+      clippingPlanes: [clipPlane]
     });
-    var liquid = new THREE.Mesh(liquidGeo, liquidMat);
-    liquid.scale.y = 0.001; // starts empty
-    liquid.position.y = -1.5; // anchored at the bottom, grows upward
+    var liquidMatComplete = new THREE.MeshPhysicalMaterial({
+      color: 0x0d8a3e,
+      transmission: 0.35,
+      roughness: 0.1,
+      thickness: 1.0,
+      ior: 1.33,
+      envMapIntensity: 1.3,
+      clippingPlanes: [clipPlane]
+    });
+    var liquid = new THREE.Mesh(liquidGeo, liquidMatNormal);
     scene.add(liquid);
-    // Re-anchor pivot: since scaling a centered geometry scales both ways,
-    // we offset position to compensate so it visually fills bottom-up.
+
     function setLiquidLevel(fraction) {
-      var f = Math.max(0.001, Math.min(1, fraction));
-      liquid.scale.y = f;
-      liquid.position.y = -1.5 * (1 - f);
+      var f = Math.max(0, Math.min(1, fraction));
+      var levelY = LIQUID_BOTTOM + (LIQUID_TOP - LIQUID_BOTTOM) * f;
+      clipPlane.constant = -levelY;
+      liquid.material = f >= 1 ? liquidMatComplete : liquidMatNormal;
     }
+    setLiquidLevel(0); // start completely empty, no visible sliver
 
     function resizeRenderer() {
       var w = statusEl.clientWidth;
@@ -183,6 +204,9 @@
       camera.updateProjectionMatrix();
     }
     window.addEventListener('resize', resizeRenderer);
+    // ResizeObserver catches the flex-computed size reliably, including
+    // right after the layout settles on page load.
+    new ResizeObserver(resizeRenderer).observe(statusEl);
     resizeRenderer();
 
     var clock = new THREE.Clock();
