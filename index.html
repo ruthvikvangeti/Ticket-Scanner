@@ -11,75 +11,128 @@
       font-family: -apple-system, system-ui, sans-serif;
       margin: 0;
       padding: 20px;
-      background: #f5f5f5;
+      background: #ffffff;
       display: flex;
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
+      perspective: 900px;
     }
     h1 { font-size: 20px; color: #333; margin-bottom: 20px; text-align: center; }
     #scanInput { opacity: 0; position: absolute; pointer-events: none; }
+
     #status {
-      width: 100%; max-width: 400px; min-height: 120px; padding: 24px;
-      border-radius: 16px; text-align: center; font-size: 18px; font-weight: bold;
-      margin-bottom: 20px; background: #4285F4; color: white;
+      width: 100%; max-width: 400px; min-height: 130px; padding: 24px;
+      border-radius: 22px; text-align: center; font-size: 18px; font-weight: bold;
+      margin-bottom: 20px; color: #1a1a1a;
       display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      transition: transform 0.15s ease, background 0.15s ease;
+      background: rgba(240, 244, 255, 0.55);
+      backdrop-filter: blur(26px) saturate(200%);
+      -webkit-backdrop-filter: blur(26px) saturate(200%);
+      border: 1px solid rgba(255,255,255,0.6);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8);
+      transform-style: preserve-3d;
+      position: relative;
+      overflow: hidden;
     }
-    #status.tapped { transform: scale(0.96); background: #2c5cbd; }
-    #status.success { background: #34A853; }
-    #status.error { background: #EA4335; }
-    #status.processing { background: #FBBC04; color: #333; }
+    #scanFill {
+      position: absolute;
+      left: 0; top: 0; bottom: 0; width: 0%;
+      background: linear-gradient(90deg, rgba(52,168,83,0.35), rgba(16,185,129,0.55));
+      transition: width 0.8s cubic-bezier(0.65, 0, 0.35, 1);
+      z-index: 0;
+    }
+    #status.complete #scanFill {
+      width: 100% !important;
+      background: linear-gradient(90deg, rgba(52,168,83,0.85), rgba(16,185,129,0.9));
+    }
+    #statusText { position: relative; z-index: 1; text-shadow: 0 1px 2px rgba(255,255,255,0.5); }
+    #status.complete #statusText { color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    #status.armed { background: rgba(0, 188, 212, 0.4); }
+    #status.success { background: rgba(52, 168, 83, 0.4); }
+    #status.error { background: rgba(234, 67, 53, 0.5); }
+    #status.processing { background: rgba(251, 188, 4, 0.45); }
+    @keyframes fullChargeGlow {
+      0%, 100% { box-shadow: 0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8), 0 0 0px rgba(52,168,83,0); }
+      50% { box-shadow: 0 8px 32px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.8), 0 0 30px rgba(52,168,83,0.6); }
+    }
+    #status.complete { animation: fullChargeGlow 1.4s ease-in-out 2; }
+
+    @keyframes flipVertical {
+      0%   { transform: rotateX(0deg);   box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+      50%  { transform: rotateX(-92deg); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+      100% { transform: rotateX(0deg);   box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    }
+    .flipping { animation: flipVertical 0.6s cubic-bezier(0.65, 0, 0.35, 1); }
+
     .actionRow { display: flex; gap: 12px; width: 100%; max-width: 400px; }
     button {
       flex: 1; padding: 18px; font-size: 16px; font-weight: bold; color: white;
-      border: none; border-radius: 12px; cursor: pointer;
-      transition: transform 0.15s ease, filter 0.15s ease;
+      border: none; border-radius: 16px; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.4);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.35);
+      transform-style: preserve-3d;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
-    button.pressed { transform: scale(0.93); filter: brightness(0.85); }
-    #endDayBtn { background: #34A853; }
-    #resetBtn { background: #EA4335; }
-    #cameraBtn {
-      width: 100%; max-width: 400px; padding: 14px; margin-bottom: 16px;
-      background: #673AB7; color: white; border: none; border-radius: 12px;
-      font-size: 15px; font-weight: bold; cursor: pointer;
-      transition: transform 0.15s ease, filter 0.15s ease;
+    #endDayBtn { background: rgba(52, 168, 83, 0.6); }
+    #resetBtn { background: rgba(234, 67, 53, 0.6); }
+
+    @keyframes flipButtonVertical {
+      0%   { transform: rotateX(0deg); }
+      50%  { transform: rotateX(-92deg); }
+      100% { transform: rotateX(0deg); }
     }
-    #cameraBtn.pressed { transform: scale(0.96); filter: brightness(0.85); }
-    #reader { width: 100%; max-width: 400px; margin-bottom: 16px; display: none; border-radius: 16px; overflow: hidden; }
-    #reader.active { display: block; }
-    #log { width: 100%; max-width: 400px; margin-top: 20px; font-size: 13px; color: #666; }
-    #log div { padding: 6px 0; border-bottom: 1px solid #eee; }
+    @keyframes breatheBounceGreen {
+      0%   { background: rgba(52, 168, 83, 0.6); animation-timing-function: ease-out; }
+      45%  { background: rgba(143, 217, 172, 0.55); animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.4); }
+      75%  { background: rgba(42, 129, 68, 0.65); }
+      100% { background: rgba(52, 168, 83, 0.6); }
+    }
+    @keyframes breatheBounceRed {
+      0%   { background: rgba(234, 67, 53, 0.6); animation-timing-function: ease-out; }
+      45%  { background: rgba(246, 167, 158, 0.55); animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.4); }
+      75%  { background: rgba(196, 39, 26, 0.65); }
+      100% { background: rgba(234, 67, 53, 0.6); }
+    }
+    #endDayBtn.flipping {
+      animation: flipButtonVertical 0.4s cubic-bezier(0.45, 0.05, 0.55, 0.95),
+                 breatheBounceGreen 0.65s ease-in-out;
+    }
+    #resetBtn.flipping {
+      animation: flipButtonVertical 0.4s cubic-bezier(0.45, 0.05, 0.55, 0.95),
+                 breatheBounceRed 0.65s ease-in-out;
+    }
+
     #configBox {
       width: 100%; max-width: 400px; margin-bottom: 16px; padding: 12px;
-      background: white; border-radius: 12px; border: 1px solid #ddd; font-size: 13px;
+      background: rgba(240, 244, 255, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 16px; border: 1px solid rgba(255,255,255,0.6); font-size: 13px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
     }
     #configBox input { width: 100%; padding: 8px; margin-top: 6px; box-sizing: border-box; }
   </style>
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 </head>
 <body>
-  <h1>📷 Scratch-Off Scanner</h1>
-
   <div id="configBox">
     <div>Apps Script URL (one-time setup):</div>
     <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
     <button onclick="saveApiUrl()" style="margin-top:8px; background:#4285F4; padding:10px;">Save URL</button>
   </div>
 
-  <div id="status">Ready to scan</div>
+  <div id="status">
+    <div id="scanFill"></div>
+    <span id="statusText">Ready to scan</span>
+  </div>
   <input type="text" id="scanInput" autocomplete="off" autocorrect="off" autocapitalize="off">
 
-  <button id="cameraBtn" onclick="toggleCamera()">📸 Use Phone Camera Instead</button>
-  <div id="reader"></div>
-
   <div class="actionRow">
-    <button id="endDayBtn" onclick="handleEndDay()">✅ End of Day</button>
-    <button id="resetBtn" onclick="handleReset()">🔄 Reset Day</button>
+    <button id="endDayBtn" onclick="handleEndDay(event)">End of Day</button>
+    <button id="resetBtn" onclick="handleReset(event)">Reset Day</button>
   </div>
-
-  <div id="log"></div>
 
   <script>
     var API_URL = localStorage.getItem('appsScriptUrl') || '';
@@ -92,20 +145,55 @@
       localStorage.setItem('appsScriptUrl', url);
       API_URL = url;
       document.getElementById('configBox').style.display = 'none';
-      statusBox.textContent = 'Saved. Ready to scan';
+      statusText.textContent = 'Saved. Ready to scan';
     }
 
     var input = document.getElementById('scanInput');
     var statusBox = document.getElementById('status');
-    var log = document.getElementById('log');
+    var statusText = document.getElementById('statusText');
+    var scanFill = document.getElementById('scanFill');
     var endDayBtn = document.getElementById('endDayBtn');
     var resetBtn = document.getElementById('resetBtn');
 
+    function refreshProgress() {
+      if (!API_URL) return;
+      callApi({ action: 'progress' }).then(function(result) {
+        var total = result.totalGames || 0;
+        var done = result.scannedToday || 0;
+        var pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+        scanFill.style.width = pct + '%';
+
+        if (total > 0 && done >= total) {
+          statusBox.classList.add('complete');
+        } else {
+          statusBox.classList.remove('complete');
+        }
+      }).catch(function() { /* progress is a nice-to-have, fail silently */ });
+    }
+
     function keepFocus() { input.focus(); }
 
+    // Flips the box top-to-bottom, swapping its color/text at the exact
+    // midpoint (when it's edge-on to the viewer), so it looks like it flips
+    // over like a page turning to reveal a new colored face.
+    function flip(el, durationMs, onMidpoint) {
+      el.classList.remove('flipping');
+      void el.offsetWidth; // force reflow so the animation can restart cleanly
+      el.classList.add('flipping');
+      setTimeout(function() {
+        if (onMidpoint) onMidpoint();
+      }, durationMs / 2);
+      setTimeout(function() {
+        el.classList.remove('flipping');
+      }, durationMs);
+    }
+
     statusBox.addEventListener('click', function() {
-      statusBox.classList.add('tapped');
-      setTimeout(function() { statusBox.classList.remove('tapped'); }, 150);
+      flip(statusBox, 600, function() {
+        statusBox.className = 'armed';
+        statusText.textContent = 'Reading...';
+      });
       keepFocus();
     });
 
@@ -121,7 +209,7 @@
     function callApi(params) {
       return new Promise(function(resolve, reject) {
         if (!API_URL) {
-          statusBox.textContent = 'Please set your Apps Script URL above first';
+          statusText.textContent = 'Please set your Apps Script URL above first';
           statusBox.className = 'error';
           document.getElementById('configBox').style.display = 'block';
           reject('no url');
@@ -161,140 +249,98 @@
 
     function submitScan(code) {
       if (!code) { keepFocus(); return; }
-      statusBox.textContent = 'Processing...';
-      statusBox.className = 'processing';
+      flip(statusBox, 600, function() {
+        statusText.textContent = 'Processing...';
+        statusBox.className = 'processing';
+      });
 
       callApi({ action: 'scan', code: code })
         .then(function(result) {
-          statusBox.textContent = result.message;
-          statusBox.className = result.success ? 'success' : 'error';
-          addLogLine(result.message, result.success);
+          flip(statusBox, 600, function() {
+            statusText.textContent = result.message;
+            statusBox.className = result.success ? 'success' : 'error';
+          });
+          refreshProgress();
           setTimeout(function() {
-            statusBox.textContent = 'Ready to scan';
-            statusBox.className = '';
+            flip(statusBox, 600, function() {
+              statusText.textContent = statusBox.classList.contains('complete')
+                ? '\u2728 All games scanned!' : 'Ready to scan';
+              statusBox.className = statusBox.classList.contains('complete') ? 'complete' : '';
+            });
           }, 2000);
           keepFocus();
         })
         .catch(function(err) {
-          statusBox.textContent = 'Error: ' + err;
-          statusBox.className = 'error';
+          flip(statusBox, 600, function() {
+            statusText.textContent = 'Error: ' + err;
+            statusBox.className = 'error';
+          });
           keepFocus();
         });
     }
 
-    function addLogLine(message, success) {
-      var div = document.createElement('div');
-      var time = new Date().toLocaleTimeString();
-      div.textContent = time + ' - ' + message;
-      div.style.color = success ? '#34A853' : '#EA4335';
-      log.insertBefore(div, log.firstChild);
-      while (log.children.length > 8) log.removeChild(log.lastChild);
-    }
-
-    function pressAnimation(btn) {
-      btn.classList.add('pressed');
-      setTimeout(function() { btn.classList.remove('pressed'); }, 150);
-    }
-
-    function handleEndDay() {
-      pressAnimation(endDayBtn);
+    function handleEndDay(event) {
+      flip(endDayBtn, 650);
       if (!confirm('Close out the day? This archives everything and rolls forward to tomorrow.')) return;
-      statusBox.textContent = 'Running End of Day...';
-      statusBox.className = 'processing';
+      flip(statusBox, 600, function() {
+        statusText.textContent = 'Running End of Day...';
+        statusBox.className = 'processing';
+      });
       callApi({ action: 'endday' })
         .then(function(result) {
-          statusBox.textContent = result.message;
-          statusBox.className = 'success';
-          setTimeout(function() { statusBox.textContent = 'Ready to scan'; statusBox.className = ''; }, 3000);
+          flip(statusBox, 600, function() {
+            statusText.textContent = result.message;
+            statusBox.className = 'success';
+          });
+          refreshProgress();
+          setTimeout(function() {
+            flip(statusBox, 600, function() {
+              statusText.textContent = 'Ready to scan';
+              statusBox.className = '';
+            });
+          }, 3000);
           keepFocus();
         })
         .catch(function(err) {
-          statusBox.textContent = 'Error: ' + err;
-          statusBox.className = 'error';
+          flip(statusBox, 600, function() {
+            statusText.textContent = 'Error: ' + err;
+            statusBox.className = 'error';
+          });
         });
     }
 
-    function handleReset() {
-      pressAnimation(resetBtn);
+    function handleReset(event) {
+      flip(resetBtn, 650);
       if (!confirm('Reset back to last End of Day? This undoes today\'s scans.')) return;
-      statusBox.textContent = 'Resetting...';
-      statusBox.className = 'processing';
+      flip(statusBox, 600, function() {
+        statusText.textContent = 'Resetting...';
+        statusBox.className = 'processing';
+      });
       callApi({ action: 'reset' })
         .then(function(result) {
-          statusBox.textContent = result.message;
-          statusBox.className = result.success ? 'success' : 'error';
-          if (result.success) log.innerHTML = '';
-          setTimeout(function() { statusBox.textContent = 'Ready to scan'; statusBox.className = ''; }, 2500);
+          flip(statusBox, 600, function() {
+            statusText.textContent = result.message;
+            statusBox.className = result.success ? 'success' : 'error';
+          });
+          refreshProgress();
+          setTimeout(function() {
+            flip(statusBox, 600, function() {
+              statusText.textContent = 'Ready to scan';
+              statusBox.className = '';
+            });
+          }, 2500);
           keepFocus();
         })
         .catch(function(err) {
-          statusBox.textContent = 'Error: ' + err;
-          statusBox.className = 'error';
+          flip(statusBox, 600, function() {
+            statusText.textContent = 'Error: ' + err;
+            statusBox.className = 'error';
+          });
         });
     }
 
     keepFocus();
-
-    // ---- Camera-based scanning (restricted to ONLY Interleaved 2 of 5) ----
-    // This works here because this page is hosted outside Google's Apps
-    // Script sandbox, which is what blocked camera access before.
-    var cameraBtn = document.getElementById('cameraBtn');
-    var readerDiv = document.getElementById('reader');
-    var html5QrCode = null;
-    var cameraActive = false;
-
-    function toggleCamera() {
-      cameraBtn.classList.add('pressed');
-      setTimeout(function() { cameraBtn.classList.remove('pressed'); }, 150);
-      if (cameraActive) { stopCamera(); } else { startCamera(); }
-    }
-
-    function startCamera() {
-      readerDiv.classList.add('active');
-      cameraBtn.textContent = '❌ Stop Camera';
-      statusBox.textContent = 'Starting camera...';
-      statusBox.className = 'processing';
-
-      html5QrCode = new Html5Qrcode('reader', {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.ITF,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39
-        ]
-      });
-
-      html5QrCode.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 300, height: 150 }, aspectRatio: 1.5 },
-        function onScanSuccess(decodedText) {
-          submitScan(decodedText);
-        },
-        function onScanFailure() { /* fires continuously while no barcode in view - ignore */ }
-      ).then(function() {
-        cameraActive = true;
-        statusBox.textContent = 'Point camera at the lottery barcode';
-        statusBox.className = '';
-      }).catch(function(err) {
-        statusBox.textContent = 'Camera error: ' + err;
-        statusBox.className = 'error';
-        readerDiv.classList.remove('active');
-        cameraBtn.textContent = '📸 Use Phone Camera Instead';
-      });
-    }
-
-    function stopCamera() {
-      if (html5QrCode) {
-        html5QrCode.stop().then(function() {
-          html5QrCode.clear();
-          readerDiv.classList.remove('active');
-          cameraBtn.textContent = '📸 Use Phone Camera Instead';
-          cameraActive = false;
-          statusBox.textContent = 'Ready to scan';
-          statusBox.className = '';
-          keepFocus();
-        });
-      }
-    }
+    refreshProgress();
   </script>
 </body>
 </html>
