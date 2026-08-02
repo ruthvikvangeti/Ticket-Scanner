@@ -116,15 +116,47 @@
       if (e.key === 'Enter') { e.preventDefault(); submitScan(input.value.trim()); input.value = ''; }
     });
 
+    var jsonpCounter = 0;
+
     function callApi(params) {
-      if (!API_URL) {
-        statusBox.textContent = 'Please set your Apps Script URL above first';
-        statusBox.className = 'error';
-        document.getElementById('configBox').style.display = 'block';
-        return Promise.reject('no url');
-      }
-      var url = API_URL + '?' + new URLSearchParams(params).toString();
-      return fetch(url).then(function(r) { return r.json(); });
+      return new Promise(function(resolve, reject) {
+        if (!API_URL) {
+          statusBox.textContent = 'Please set your Apps Script URL above first';
+          statusBox.className = 'error';
+          document.getElementById('configBox').style.display = 'block';
+          reject('no url');
+          return;
+        }
+
+        var callbackName = 'jsonpCallback' + (jsonpCounter++);
+        var timeoutId;
+
+        window[callbackName] = function(result) {
+          clearTimeout(timeoutId);
+          delete window[callbackName];
+          document.body.removeChild(script);
+          resolve(result);
+        };
+
+        params.callback = callbackName;
+        var url = API_URL + '?' + new URLSearchParams(params).toString();
+
+        var script = document.createElement('script');
+        script.src = url;
+        script.onerror = function() {
+          clearTimeout(timeoutId);
+          delete window[callbackName];
+          if (script.parentNode) document.body.removeChild(script);
+          reject('Could not reach the server. Check your Apps Script URL.');
+        };
+        document.body.appendChild(script);
+
+        timeoutId = setTimeout(function() {
+          delete window[callbackName];
+          if (script.parentNode) document.body.removeChild(script);
+          reject('Request timed out. Check your connection.');
+        }, 15000);
+      });
     }
 
     function submitScan(code) {
@@ -204,6 +236,8 @@
     keepFocus();
 
     // ---- Camera-based scanning (restricted to ONLY Interleaved 2 of 5) ----
+    // This works here because this page is hosted outside Google's Apps
+    // Script sandbox, which is what blocked camera access before.
     var cameraBtn = document.getElementById('cameraBtn');
     var readerDiv = document.getElementById('reader');
     var html5QrCode = null;
@@ -222,12 +256,16 @@
       statusBox.className = 'processing';
 
       html5QrCode = new Html5Qrcode('reader', {
-        formatsToSupport: [Html5QrcodeSupportedFormats.ITF]
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39
+        ]
       });
 
       html5QrCode.start(
         { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 280, height: 120 } },
+        { fps: 10, qrbox: { width: 300, height: 150 }, aspectRatio: 1.5 },
         function onScanSuccess(decodedText) {
           submitScan(decodedText);
         },
