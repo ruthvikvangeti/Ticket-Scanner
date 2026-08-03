@@ -11,8 +11,8 @@
       font-family: -apple-system, system-ui, sans-serif;
       margin: 0;
       padding: 20px;
-      background: #0d1117;
-      color: #ffffff;
+      background: #f8fafc; /* Clean Light Background */
+      color: #0f172a;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -20,17 +20,17 @@
       min-height: 100vh;
     }
 
-    /* Outer Card Box */
+    /* Outer Card Box (White Theme) */
     #status {
       width: 100%; max-width: 480px;
       height: 320px;
       margin-bottom: 24px;
       position: relative;
       display: flex; align-items: center; justify-content: center;
-      background: radial-gradient(ellipse at 50% 40%, #161b22 0%, #0d1117 70%);
-      border-radius: 24px;
-      border: 1px solid #30363d;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      background: #ffffff;
+      border-radius: 28px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
     }
 
     /* Circular SVG Ring Setup */
@@ -57,16 +57,16 @@
 
     /* Background Ring Track */
     .bg-ring {
-      stroke: rgba(255, 255, 255, 0.08);
+      stroke: #f1f5f9;
     }
 
     /* Glowing Progress Ring Fill */
     .progress-ring {
-      stroke: #00ff88;
+      stroke: #10b981; /* Vibrant Emerald Green */
       stroke-dasharray: 565; /* Circumference of circle (2 * π * 90) */
       stroke-dashoffset: 565; /* 565 = 0% filled */
-      transition: stroke-dashoffset 0.5s ease-in-out, stroke 0.3s ease;
-      filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.6));
+      transition: stroke-dashoffset 0.2s ease-in-out, stroke 0.3s ease;
+      filter: drop-shadow(0 4px 6px rgba(16, 185, 129, 0.25));
     }
 
     /* Ring Center Label */
@@ -77,51 +77,78 @@
     }
 
     #countDisplay {
-      font-size: 28px;
+      font-size: 32px;
       font-weight: 800;
-      color: #ffffff;
-      letter-spacing: 0.5px;
+      color: #0f172a;
+      letter-spacing: -0.5px;
     }
 
     #pctDisplay {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
-      color: #00ff88;
-      margin-top: 4px;
+      color: #059669;
+      margin-top: 2px;
+    }
+
+    /* Sync Indicator Dot */
+    #syncIndicator {
+      position: absolute;
+      bottom: 16px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      background-color: #10b981;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.7; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.7; }
     }
 
     /* Action Buttons */
     .actionRow { display: flex; gap: 12px; width: 100%; max-width: 480px; flex-shrink: 0; }
     button {
-      flex: 1; padding: 18px; font-size: 16px; font-weight: bold; color: white;
-      border: none; border-radius: 16px; cursor: pointer;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255,255,255,0.15);
-      transition: transform 0.1s active;
+      flex: 1; padding: 18px; font-size: 16px; font-weight: 700; color: white;
+      border: none; border-radius: 18px; cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      transition: all 0.15s ease;
     }
-    #endDayBtn { background: rgba(52, 168, 83, 0.92); }
-    #resetBtn { background: rgba(234, 67, 53, 0.92); }
+    #endDayBtn { background: #10b981; }
+    #endDayBtn:hover { background: #059669; }
+    
+    #resetBtn { background: #ef4444; }
+    #resetBtn:hover { background: #dc2626; }
 
     button:active { transform: scale(0.97); }
 
     #configBox {
-      width: 100%; max-width: 480px; margin-bottom: 16px; padding: 12px;
+      width: 100%; max-width: 480px; margin-bottom: 16px; padding: 16px;
       flex-shrink: 0;
-      background: #161b22;
-      border-radius: 16px; border: 1px solid #30363d; font-size: 13px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      background: #ffffff;
+      border-radius: 18px; border: 1px solid #e2e8f0; font-size: 13px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
     }
-    #configBox input { width: 100%; padding: 8px; margin-top: 6px; box-sizing: border-box; }
+    #configBox input { width: 100%; padding: 10px; margin-top: 8px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; }
   </style>
 </head>
 <body>
 
   <div id="configBox">
-    <div>Apps Script URL (one-time setup):</div>
+    <div><b>Apps Script URL (one-time setup):</b></div>
     <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
-    <button onclick="saveApiUrl()" style="margin-top:8px; background:#4285F4; border:none; color:#fff; border-radius:8px; padding:10px; width:100%;">Save URL</button>
+    <button onclick="saveApiUrl()" style="margin-top:10px; background:#2563eb; color:#fff; border:none; padding:10px; width:100%; border-radius:8px; font-weight:bold;">Save URL</button>
   </div>
 
   <div id="status">
@@ -135,6 +162,7 @@
         <div id="pctDisplay">0% Scanned</div>
       </div>
     </div>
+    <div id="syncIndicator"><span class="dot"></span> Ultra-Sync Active (200ms)</div>
   </div>
 
   <div class="actionRow">
@@ -166,15 +194,13 @@
 
     function setCircleProgress(fraction) {
       var f = Math.max(0, Math.min(1, fraction));
-      // Calculate offset (565 = empty, 0 = fully filled circle)
       var offset = CIRCUMFERENCE - (f * CIRCUMFERENCE);
       ringFill.style.strokeDashoffset = offset;
 
-      // Color transition when complete
       if (f >= 1) {
-        ringFill.style.stroke = '#3b82f6'; // Bright blue on 100% complete
+        ringFill.style.stroke = '#2563eb'; // Blue when 100% complete
       } else {
-        ringFill.style.stroke = '#00ff88'; // Vibrant green while filling
+        ringFill.style.stroke = '#10b981'; // Green while filling
       }
     }
 
@@ -196,6 +222,13 @@
         applyLiquidLevel();
       }).catch(function(err) { /* silent catch */ });
     }
+
+    // -------------------------------------------------------------
+    // ULTRA-FAST AUTO-SYNC POLLING LOOP (Checks every 200ms)
+    // -------------------------------------------------------------
+    setInterval(function() {
+      refreshProgress();
+    }, 200);
 
     // Bluetooth Scanner Keyboard Buffer Listener
     var scanBuffer = '';
@@ -231,7 +264,7 @@
         window[callbackName] = function(result) {
           clearTimeout(timeoutId);
           delete window[callbackName];
-          document.body.removeChild(script);
+          if (script.parentNode) document.body.removeChild(script);
           resolve(result);
         };
 
@@ -301,7 +334,7 @@
         });
     }
 
-    setTimeout(refreshProgress, 500);
+    setTimeout(refreshProgress, 200);
   </script>
 </body>
 </html>
