@@ -107,7 +107,7 @@
     <canvas id="glassCanvas"></canvas>
     <span id="statusText">Ready to scan</span>
   </div>
-  <input type="text" id="scanInput" autocomplete="off" autocorrect="off" autocapitalize="off">
+  <input type="text" id="scanInput" autocomplete="off" autocorrect="off" autocapitalize="off" readonly>
 
   <div class="actionRow">
     <button id="endDayBtn" onclick="handleEndDay(event)">End of Day</button>
@@ -273,8 +273,29 @@
       if (document.activeElement !== input) keepFocus();
     }, 1000);
 
+    // With the input set to readonly (needed to reliably suppress iOS's
+    // on-screen keyboard), the browser no longer auto-fills the input's
+    // value as the scanner "types" - so we build the scanned string
+    // ourselves from individual keydown events instead.
+    var scanBuffer = '';
     input.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') { e.preventDefault(); submitScan(input.value.trim()); input.value = ''; }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitScan(scanBuffer.trim());
+        scanBuffer = '';
+        return;
+      }
+      if (e.key === 'Backspace') {
+        scanBuffer = scanBuffer.slice(0, -1);
+        e.preventDefault();
+        return;
+      }
+      // Only accumulate real printable characters (digits from the
+      // scanner) - ignore modifier keys, arrows, etc.
+      if (e.key.length === 1) {
+        scanBuffer += e.key;
+        e.preventDefault();
+      }
     });
 
     var jsonpCounter = 0;
