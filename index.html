@@ -27,21 +27,20 @@
     circle { fill: none; stroke-width: 14; stroke-linecap: round; }
     .bg-ring { stroke: #f1f5f9; }
     .progress-ring {
-      stroke: #10b981; stroke-dasharray: 565; stroke-dashoffset: 565;
+      stroke: #00F0FF; stroke-dasharray: 565; stroke-dashoffset: 565;
       transition: stroke-dashoffset 0.15s ease-in-out, stroke 0.2s ease;
-      filter: drop-shadow(0 4px 6px rgba(16, 185, 129, 0.25));
+      filter: drop-shadow(0 4px 8px rgba(0, 240, 255, 0.35));
     }
 
     .ring-text { position: absolute; text-align: center; pointer-events: none; }
-    #countDisplay { font-size: 32px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
-    #pctDisplay { font-size: 15px; font-weight: 600; color: #059669; margin-top: 2px; }
+    #countDisplay { font-size: 36px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
 
     #syncIndicator {
       position: absolute; bottom: 16px; font-size: 11px; font-weight: 600;
       color: #94a3b8; display: flex; align-items: center; gap: 6px;
     }
 
-    .dot { width: 8px; height: 8px; background-color: #10b981; border-radius: 50%; display: inline-block; animation: pulse 1.2s infinite; }
+    .dot { width: 8px; height: 8px; background-color: #00F0FF; border-radius: 50%; display: inline-block; animation: pulse 1.2s infinite; }
     @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.7; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.7; } }
 
     .actionRow { display: flex; gap: 12px; width: 100%; max-width: 480px; flex-shrink: 0; }
@@ -49,7 +48,7 @@
       flex: 1; padding: 18px; font-size: 16px; font-weight: 700; color: white;
       border: none; border-radius: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: all 0.15s ease;
     }
-    #endDayBtn { background: #10b981; }
+    #endDayBtn { background: #00F0FF; color: #0f172a; }
     #resetBtn { background: #ef4444; }
     button:active { transform: scale(0.97); }
 
@@ -76,7 +75,6 @@
       </svg>
       <div class="ring-text">
         <div id="countDisplay">0 / 42</div>
-        <div id="pctDisplay">0% Scanned</div>
       </div>
     </div>
     <div id="syncIndicator"><span class="dot" id="syncDot"></span> <span id="syncStatus">Live Sync Active</span></div>
@@ -103,7 +101,6 @@
 
     var ringFill = document.getElementById('ringFill');
     var countDisplay = document.getElementById('countDisplay');
-    var pctDisplay = document.getElementById('pctDisplay');
     var syncDot = document.getElementById('syncDot');
 
     var cachedTotal = 42;
@@ -117,19 +114,16 @@
       var f = Math.max(0, Math.min(1, fraction));
       var offset = CIRCUMFERENCE - (f * CIRCUMFERENCE);
       ringFill.style.strokeDashoffset = offset;
-      ringFill.style.stroke = f >= 1 ? '#2563eb' : '#10b981';
+      ringFill.style.stroke = f >= 1 ? '#2563eb' : '#00F0FF';
     }
 
     function applyLiquidLevel() {
-      var pct = cachedTotal > 0 ? cachedScanned / cachedTotal : 0;
-      var pctInt = Math.round(pct * 100);
       countDisplay.textContent = cachedScanned + ' / ' + cachedTotal;
-      pctDisplay.textContent = pctInt + '% Scanned';
+      var pct = cachedTotal > 0 ? cachedScanned / cachedTotal : 0;
       setCircleProgress(pct);
     }
 
     function refreshProgress() {
-      // Pause background sync while queue is processing
       if (!API_URL || isProcessingQueue || scanQueue.length > 0) return;
       
       callApi({ action: 'progress' }).then(function(result) {
@@ -141,10 +135,8 @@
       }).catch(function(err) {});
     }
 
-    // Background sync cycle
     setInterval(refreshProgress, 500);
 
-    // High-speed Bluetooth Scanner Buffer
     var scanBuffer = '';
     var scanTimeout;
 
@@ -168,13 +160,10 @@
       scanTimeout = setTimeout(function() { scanBuffer = ''; }, 100);
     });
 
-    // INSTANT UI UPDATE (0ms) + CLEAN BACKGROUND QUEUE
     function enqueueScan(code) {
-      // 0ms instant counter increment on screen
       cachedScanned = Math.min(cachedTotal, cachedScanned + 1);
       applyLiquidLevel();
 
-      // Silent queue insertion
       scanQueue.push(code);
       processNextQueueItem();
     }
@@ -187,11 +176,10 @@
 
       callApi({ action: 'scan', code: currentCode })
         .then(function(result) {
-          scanQueue.shift(); // Remove completed scan
+          scanQueue.shift();
           isProcessingQueue = false;
 
           if (!result || !result.success) {
-            // Revert count if invalid scan
             cachedScanned = Math.max(0, cachedScanned - 1);
             applyLiquidLevel();
           }
@@ -251,13 +239,11 @@
 
     function handleEndDay(event) {
       if (!confirm('Close out the day? This archives everything.')) return;
-      pctDisplay.textContent = 'Ending Day...';
       callApi({ action: 'endday' }).then(function() { refreshProgress(); });
     }
 
     function handleReset(event) {
       if (!confirm('Reset back to last End of Day?')) return;
-      pctDisplay.textContent = 'Resetting...';
       callApi({ action: 'reset' }).then(function() { refreshProgress(); });
     }
 
