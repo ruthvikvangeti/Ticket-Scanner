@@ -248,17 +248,23 @@
     var statusText = document.getElementById('statusText');
     var endDayBtn = document.getElementById('endDayBtn');
     var resetBtn = document.getElementById('resetBtn');
+    var cachedTotal = 0, cachedScanned = 0;
+
+    function applyLiquidLevel() {
+      var pct = cachedTotal > 0 ? cachedScanned / cachedTotal : 0;
+      if (window.setLiquidLevel) window.setLiquidLevel(pct);
+    }
 
     function refreshProgress() {
       if (!API_URL) return;
       var debugEl = document.getElementById('debugText');
       debugEl.textContent = 'debug: fetching...';
       callApi({ action: 'progress' }).then(function(result) {
-        var total = result.totalGames || 0;
-        var done = result.scannedToday || 0;
-        var pct = total > 0 ? done / total : 0;
-        debugEl.textContent = 'debug: ' + done + '/' + total + ' = ' + Math.round(pct * 100) + '% | setLiquidLevel=' + (window.setLiquidLevel ? 'ready' : 'NOT READY');
-        if (window.setLiquidLevel) window.setLiquidLevel(pct);
+        cachedTotal = result.totalGames || 0;
+        cachedScanned = result.scannedToday || 0;
+        var pct = cachedTotal > 0 ? cachedScanned / cachedTotal : 0;
+        debugEl.textContent = 'debug: ' + cachedScanned + '/' + cachedTotal + ' = ' + Math.round(pct * 100) + '% | setLiquidLevel=' + (window.setLiquidLevel ? 'ready' : 'NOT READY');
+        applyLiquidLevel();
       }).catch(function(err) {
         debugEl.textContent = 'debug error: ' + err;
       });
@@ -273,6 +279,14 @@
 
     window.addEventListener('load', keepFocus);
     window.addEventListener('focus', keepFocus);
+
+    // Auto-focus guard: if focus ever drifts off the invisible scan input
+    // (e.g. after a confirm() dialog, or the phone browser doing something
+    // unexpected), pull it back automatically so the scanner never needs
+    // an extra tap to keep working.
+    setInterval(function() {
+      if (document.activeElement !== input) keepFocus();
+    }, 1000);
 
     input.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') { e.preventDefault(); submitScan(input.value.trim()); input.value = ''; }
@@ -322,12 +336,27 @@
 
     function submitScan(code) {
       if (!code) { keepFocus(); return; }
+
+      // Optimistic update: bump the fill immediately so it feels instant,
+      // rather than waiting for the round-trip to the server. The follow-up
+      // refreshProgress() call corrects this with the real confirmed count
+      // right after, and a failure rolls the bump back cleanly.
+      var hadTotal = cachedTotal > 0;
+      if (hadTotal) {
+        cachedScanned = Math.min(cachedTotal, cachedScanned + 1);
+        applyLiquidLevel();
+      }
+
       callApi({ action: 'scan', code: code })
         .then(function(result) {
           refreshProgress();
           keepFocus();
         })
         .catch(function(err) {
+          if (hadTotal) {
+            cachedScanned = Math.max(0, cachedScanned - 1);
+            applyLiquidLevel();
+          }
           keepFocus();
         });
     }
