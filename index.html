@@ -36,13 +36,6 @@
       pointer-events: none;
       z-index: 1;
     }
-    #debugText {
-      position: absolute;
-      bottom: -24px; left: 0;
-      font-size: 11px; color: #999;
-      z-index: 2; pointer-events: none;
-      width: 100%; text-align: center;
-    }
 
     .actionRow { display: flex; gap: 12px; width: 100%; max-width: 480px; flex-shrink: 0; }
     button {
@@ -114,7 +107,6 @@
   <div id="status">
     <canvas id="glassCanvas"></canvas>
     <span id="statusText">Ready to scan</span>
-    <span id="debugText">debug: waiting...</span>
   </div>
 
   <div class="actionRow">
@@ -173,7 +165,7 @@
     var LIQUID_LEFT = -1.95;
     var LIQUID_RIGHT = 1.95;
 
-    var clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), -LIQUID_LEFT);
+    var clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), LIQUID_LEFT);
     renderer.localClippingEnabled = true;
 
     var liquidGeo = new RoundedBoxGeometry(4.0, 1.45, 1.45, 6, 0.58);
@@ -201,7 +193,7 @@
     function setLiquidLevel(fraction) {
       var f = Math.max(0, Math.min(1, fraction));
       var levelX = LIQUID_LEFT + (LIQUID_RIGHT - LIQUID_LEFT) * f;
-      clipPlane.constant = -levelX;
+      clipPlane.constant = levelX;
       liquid.material = f >= 1 ? liquidMatComplete : liquidMatNormal;
     }
     setLiquidLevel(0); // start completely empty, no visible sliver
@@ -259,17 +251,11 @@
 
     function refreshProgress() {
       if (!API_URL) return;
-      var debugEl = document.getElementById('debugText');
-      debugEl.textContent = 'debug: fetching...';
       callApi({ action: 'progress' }).then(function(result) {
         cachedTotal = result.totalGames || 0;
         cachedScanned = result.scannedToday || 0;
-        var pct = cachedTotal > 0 ? cachedScanned / cachedTotal : 0;
-        debugEl.textContent = 'debug: ' + cachedScanned + '/' + cachedTotal + ' = ' + Math.round(pct * 100) + '%';
         applyLiquidLevel();
-      }).catch(function(err) {
-        debugEl.textContent = 'debug error: ' + err;
-      });
+      }).catch(function(err) { /* progress is a nice-to-have, fail silently */ });
     }
 
     statusBox.addEventListener('click', function() {
