@@ -33,7 +33,7 @@
     #glassCanvas { width: 100%; height: 100%; display: block; }
     #statusText {
       position: absolute;
-      font-size: 20px; font-weight: bold; color: #ffffff;
+      font-size: 22px; font-weight: bold; color: #ffffff;
       text-shadow: 0 2px 8px rgba(0,0,0,0.8);
       pointer-events: none;
       z-index: 1;
@@ -157,18 +157,18 @@
     scene.add(glass);
 
     // ---- Inner Liquid Filling Horizontally (Left to Right) ----
-    var LIQUID_LEFT = -1.95;
-    var LIQUID_RIGHT = 1.95;
+    var LIQUID_LEFT = -1.65;
+    var LIQUID_RIGHT = 1.65;
 
-    // Normal pointing right (1, 0, 0) for progressive left-to-right fill
-    var clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), -LIQUID_LEFT);
+    // Fixed Vector Direction: Vector3(-1, 0, 0) cuts from left to right
+    var clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), LIQUID_LEFT);
     renderer.localClippingEnabled = true;
 
     var liquidGeo = new RoundedBoxGeometry(4.0, 1.45, 1.45, 6, 0.58);
     var liquidMatNormal = new THREE.MeshPhysicalMaterial({
       color: 0x00e5ff,
       emissive: 0x0097a7,
-      emissiveIntensity: 0.3,
+      emissiveIntensity: 0.4,
       transmission: 0.1,
       roughness: 0.15,
       thickness: 0.5,
@@ -213,8 +213,10 @@
 
       // Smooth gradual rise/fill of liquid
       currentFraction += (targetFraction - currentFraction) * 0.05;
+      
+      // Calculate plane constant for progressive fill
       var currentX = LIQUID_LEFT + (LIQUID_RIGHT - LIQUID_LEFT) * currentFraction;
-      clipPlane.constant = -currentX;
+      clipPlane.constant = currentX;
 
       liquid.material = currentFraction >= 0.99 ? liquidMatComplete : liquidMatNormal;
 
