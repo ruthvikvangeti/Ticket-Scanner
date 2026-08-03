@@ -17,11 +17,10 @@
       align-items: center;
       min-height: 100vh;
     }
-    #scanInput { opacity: 0; position: absolute; pointer-events: none; }
 
     #status {
       width: 100%; max-width: 480px;
-      height: 320px;
+      height: 220px;
       margin-bottom: 20px;
       position: relative;
       display: flex; align-items: center; justify-content: center;
@@ -107,7 +106,6 @@
     <canvas id="glassCanvas"></canvas>
     <span id="statusText">Ready to scan</span>
   </div>
-  <input type="text" id="scanInput" autocomplete="off" autocorrect="off" autocapitalize="off" readonly>
 
   <div class="actionRow">
     <button id="endDayBtn" onclick="handleEndDay(event)">End of Day</button>
@@ -140,8 +138,9 @@
     scene.add(light2);
     scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 
-    // ---- Outer glass capsule ----
-    var glassGeo = new THREE.CapsuleGeometry(1.6, 1.4, 8, 24);
+    // ---- Outer glass tube (horizontal) ----
+    var glassGeo = new THREE.CapsuleGeometry(1.3, 2.8, 8, 24);
+    glassGeo.rotateZ(Math.PI / 2); // lay the capsule on its side
     var glassMat = new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
       transmission: 1,
@@ -155,18 +154,20 @@
     var glass = new THREE.Mesh(glassGeo, glassMat);
     scene.add(glass);
 
-    // ---- Inner liquid (green), revealed via a clipping plane for a clean
-    // flat liquid surface - avoids the distortion that scaling a capsule's
-    // rounded ends would cause, and disappears completely at 0%.
-    var LIQUID_BOTTOM = -1.5;
-    var LIQUID_TOP = 1.5;
+    // ---- Inner liquid (cyan), revealed via a clipping plane for a clean
+    // flat liquid surface, filling left-to-right along the tube - avoids
+    // the distortion that scaling a capsule's rounded ends would cause,
+    // and disappears completely at 0%.
+    var LIQUID_LEFT = -1.4;
+    var LIQUID_RIGHT = 1.4;
 
-    var clipPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -LIQUID_BOTTOM);
+    var clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), -LIQUID_LEFT);
     renderer.localClippingEnabled = true;
 
-    var liquidGeo = new THREE.CapsuleGeometry(1.42, 1.24, 8, 24);
+    var liquidGeo = new THREE.CapsuleGeometry(1.16, 2.64, 8, 24);
+    liquidGeo.rotateZ(Math.PI / 2);
     var liquidMatNormal = new THREE.MeshPhysicalMaterial({
-      color: 0x34c759,
+      color: 0x00bcd4,
       transmission: 0.5,
       roughness: 0.15,
       thickness: 1.0,
@@ -175,7 +176,7 @@
       clippingPlanes: [clipPlane]
     });
     var liquidMatComplete = new THREE.MeshPhysicalMaterial({
-      color: 0x0d8a3e,
+      color: 0x00838f,
       transmission: 0.35,
       roughness: 0.1,
       thickness: 1.0,
@@ -188,8 +189,8 @@
 
     function setLiquidLevel(fraction) {
       var f = Math.max(0, Math.min(1, fraction));
-      var levelY = LIQUID_BOTTOM + (LIQUID_TOP - LIQUID_BOTTOM) * f;
-      clipPlane.constant = -levelY;
+      var levelX = LIQUID_LEFT + (LIQUID_RIGHT - LIQUID_LEFT) * f;
+      clipPlane.constant = -levelX;
       liquid.material = f >= 1 ? liquidMatComplete : liquidMatNormal;
     }
     setLiquidLevel(0); // start completely empty, no visible sliver
@@ -234,7 +235,6 @@
       statusText.textContent = 'Saved. Ready to scan';
     }
 
-    var input = document.getElementById('scanInput');
     var statusBox = document.getElementById('status');
     var statusText = document.getElementById('statusText');
     var endDayBtn = document.getElementById('endDayBtn');
@@ -255,30 +255,16 @@
       }).catch(function(err) { /* progress is a nice-to-have, fail silently */ });
     }
 
-    function keepFocus() { input.focus(); }
-
     statusBox.addEventListener('click', function() {
       statusText.textContent = 'Reading...';
-      keepFocus();
     });
 
-    window.addEventListener('load', keepFocus);
-    window.addEventListener('focus', keepFocus);
-
-    // Auto-focus guard: if focus ever drifts off the invisible scan input
-    // (e.g. after a confirm() dialog, or the phone browser doing something
-    // unexpected), pull it back automatically so the scanner never needs
-    // an extra tap to keep working.
-    setInterval(function() {
-      if (document.activeElement !== input) keepFocus();
-    }, 1000);
-
-    // With the input set to readonly (needed to reliably suppress iOS's
-    // on-screen keyboard), the browser no longer auto-fills the input's
-    // value as the scanner "types" - so we build the scanned string
-    // ourselves from individual keydown events instead.
+    // No input element is ever focused, so there's nothing for iOS to show
+    // a keyboard for. The physical Bluetooth scanner sends real keydown
+    // events regardless of what has focus, so listening at the document
+    // level catches every scan without needing to focus anything at all.
     var scanBuffer = '';
-    input.addEventListener('keydown', function(e) {
+    document.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         e.preventDefault();
         submitScan(scanBuffer.trim());
@@ -287,14 +273,12 @@
       }
       if (e.key === 'Backspace') {
         scanBuffer = scanBuffer.slice(0, -1);
-        e.preventDefault();
         return;
       }
       // Only accumulate real printable characters (digits from the
       // scanner) - ignore modifier keys, arrows, etc.
       if (e.key.length === 1) {
         scanBuffer += e.key;
-        e.preventDefault();
       }
     });
 
@@ -341,7 +325,7 @@
     }
 
     function submitScan(code) {
-      if (!code) { keepFocus(); return; }
+      if (!code) { return; }
 
       // Optimistic update: bump the fill immediately so it feels instant,
       // rather than waiting for the round-trip to the server. The follow-up
@@ -356,14 +340,12 @@
       callApi({ action: 'scan', code: code })
         .then(function(result) {
           refreshProgress();
-          keepFocus();
         })
         .catch(function(err) {
           if (hadTotal) {
             cachedScanned = Math.max(0, cachedScanned - 1);
             applyLiquidLevel();
           }
-          keepFocus();
         });
     }
 
@@ -377,7 +359,6 @@
           statusText.textContent = result.message;
           refreshProgress();
           setTimeout(function() { statusText.textContent = 'Ready to scan'; }, 3000);
-          keepFocus();
         })
         .catch(function(err) {
           statusText.textContent = 'Error: ' + err;
@@ -394,14 +375,12 @@
           statusText.textContent = result.message;
           refreshProgress();
           setTimeout(function() { statusText.textContent = 'Ready to scan'; }, 2500);
-          keepFocus();
         })
         .catch(function(err) {
           statusText.textContent = 'Error: ' + err;
         });
     }
 
-    keepFocus();
     setTimeout(refreshProgress, 800); // slight delay so the module script's setLiquidLevel is ready
   </script>
 </body>
