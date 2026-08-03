@@ -36,6 +36,13 @@
       pointer-events: none;
       z-index: 1;
     }
+    #debugText2 {
+      position: absolute;
+      bottom: -24px; left: 0;
+      font-size: 11px; color: #999;
+      z-index: 2; pointer-events: none;
+      width: 100%; text-align: center;
+    }
 
     .actionRow { display: flex; gap: 12px; width: 100%; max-width: 480px; flex-shrink: 0; }
     button {
@@ -107,6 +114,7 @@
   <div id="status">
     <canvas id="glassCanvas"></canvas>
     <span id="statusText">Ready to scan</span>
+    <span id="debugText2">v2: waiting...</span>
   </div>
 
   <div class="actionRow">
@@ -222,6 +230,9 @@
     animate();
 
     window.setLiquidLevel = setLiquidLevel;
+    window.getClipDebugInfo = function() {
+      return 'const=' + clipPlane.constant.toFixed(2) + ',L=' + LIQUID_LEFT + ',R=' + LIQUID_RIGHT;
+    };
   </script>
 
   <script>
@@ -251,11 +262,18 @@
 
     function refreshProgress() {
       if (!API_URL) return;
+      var debugEl = document.getElementById('debugText2');
+      debugEl.textContent = 'v2: fetching...';
       callApi({ action: 'progress' }).then(function(result) {
         cachedTotal = result.totalGames || 0;
         cachedScanned = result.scannedToday || 0;
+        var pct = cachedTotal > 0 ? cachedScanned / cachedTotal : 0;
         applyLiquidLevel();
-      }).catch(function(err) { /* progress is a nice-to-have, fail silently */ });
+        var clipInfo = window.getClipDebugInfo ? window.getClipDebugInfo() : 'n/a';
+        debugEl.textContent = 'v2: ' + cachedScanned + '/' + cachedTotal + '=' + Math.round(pct*100) + '% | clip=' + clipInfo;
+      }).catch(function(err) {
+        debugEl.textContent = 'v2 error: ' + err;
+      });
     }
 
     statusBox.addEventListener('click', function() {
