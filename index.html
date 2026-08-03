@@ -115,6 +115,7 @@
   <script type="module">
     import * as THREE from 'three';
     import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+    import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
     var statusEl = document.getElementById('status');
     var canvas = document.getElementById('glassCanvas');
@@ -138,9 +139,8 @@
     scene.add(light2);
     scene.add(new THREE.AmbientLight(0xffffff, 0.3));
 
-    // ---- Outer glass tube (horizontal) ----
-    var glassGeo = new THREE.CapsuleGeometry(1.3, 2.8, 8, 24);
-    glassGeo.rotateZ(Math.PI / 2); // lay the capsule on its side
+    // ---- Outer glass tube (rounded rectangular bar, matching reference) ----
+    var glassGeo = new RoundedBoxGeometry(3.2, 1.3, 1.3, 6, 0.55);
     var glassMat = new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
       transmission: 1,
@@ -155,17 +155,16 @@
     scene.add(glass);
 
     // ---- Inner liquid (cyan), revealed via a clipping plane for a clean
-    // flat liquid surface, filling left-to-right along the tube - avoids
-    // the distortion that scaling a capsule's rounded ends would cause,
-    // and disappears completely at 0%.
-    var LIQUID_LEFT = -1.4;
-    var LIQUID_RIGHT = 1.4;
+    // flat liquid surface, filling left-to-right along the bar - avoids
+    // the distortion that scaling a rounded box's beveled ends would
+    // cause, and disappears completely at 0%.
+    var LIQUID_LEFT = -1.5;
+    var LIQUID_RIGHT = 1.5;
 
     var clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), -LIQUID_LEFT);
     renderer.localClippingEnabled = true;
 
-    var liquidGeo = new THREE.CapsuleGeometry(1.16, 2.64, 8, 24);
-    liquidGeo.rotateZ(Math.PI / 2);
+    var liquidGeo = new RoundedBoxGeometry(3.0, 1.1, 1.1, 6, 0.45);
     var liquidMatNormal = new THREE.MeshPhysicalMaterial({
       color: 0x00bcd4,
       transmission: 0.5,
