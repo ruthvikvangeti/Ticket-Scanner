@@ -11,7 +11,7 @@
       font-family: -apple-system, system-ui, sans-serif;
       margin: 0;
       padding: 20px;
-      background: #f8fafc; /* Clean Light Background */
+      background: #f8fafc;
       color: #0f172a;
       display: flex;
       flex-direction: column;
@@ -20,7 +20,6 @@
       min-height: 100vh;
     }
 
-    /* Outer Card Box (White Theme) */
     #status {
       width: 100%; max-width: 480px;
       height: 320px;
@@ -33,7 +32,6 @@
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
     }
 
-    /* Circular SVG Ring Setup */
     .circle-container {
       position: relative;
       width: 220px;
@@ -46,7 +44,7 @@
     svg {
       width: 100%;
       height: 100%;
-      transform: rotate(-90deg); /* Start ring at top center */
+      transform: rotate(-90deg);
     }
 
     circle {
@@ -55,21 +53,18 @@
       stroke-linecap: round;
     }
 
-    /* Background Ring Track */
     .bg-ring {
       stroke: #f1f5f9;
     }
 
-    /* Glowing Progress Ring Fill */
     .progress-ring {
-      stroke: #10b981; /* Vibrant Emerald Green */
-      stroke-dasharray: 565; /* Circumference of circle (2 * π * 90) */
-      stroke-dashoffset: 565; /* 565 = 0% filled */
-      transition: stroke-dashoffset 0.2s ease-in-out, stroke 0.3s ease;
+      stroke: #10b981;
+      stroke-dasharray: 565;
+      stroke-dashoffset: 565;
+      transition: stroke-dashoffset 0.4s ease-in-out, stroke 0.3s ease;
       filter: drop-shadow(0 4px 6px rgba(16, 185, 129, 0.25));
     }
 
-    /* Ring Center Label */
     .ring-text {
       position: absolute;
       text-align: center;
@@ -90,7 +85,6 @@
       margin-top: 2px;
     }
 
-    /* Sync Indicator Dot */
     #syncIndicator {
       position: absolute;
       bottom: 16px;
@@ -108,7 +102,7 @@
       background-color: #10b981;
       border-radius: 50%;
       display: inline-block;
-      animation: pulse 1s infinite;
+      animation: pulse 2s infinite;
     }
 
     @keyframes pulse {
@@ -117,7 +111,6 @@
       100% { transform: scale(0.95); opacity: 0.7; }
     }
 
-    /* Action Buttons */
     .actionRow { display: flex; gap: 12px; width: 100%; max-width: 480px; flex-shrink: 0; }
     button {
       flex: 1; padding: 18px; font-size: 16px; font-weight: 700; color: white;
@@ -162,7 +155,7 @@
         <div id="pctDisplay">0% Scanned</div>
       </div>
     </div>
-    <div id="syncIndicator"><span class="dot"></span> Ultra-Sync Active (200ms)</div>
+    <div id="syncIndicator"><span class="dot"></span> Live Sync Active</div>
   </div>
 
   <div class="actionRow">
@@ -190,7 +183,7 @@
 
     var cachedTotal = 38;
     var cachedScanned = 0;
-    const CIRCUMFERENCE = 565; // 2 * π * 90
+    const CIRCUMFERENCE = 565;
 
     function setCircleProgress(fraction) {
       var f = Math.max(0, Math.min(1, fraction));
@@ -198,9 +191,9 @@
       ringFill.style.strokeDashoffset = offset;
 
       if (f >= 1) {
-        ringFill.style.stroke = '#2563eb'; // Blue when 100% complete
+        ringFill.style.stroke = '#2563eb';
       } else {
-        ringFill.style.stroke = '#10b981'; // Green while filling
+        ringFill.style.stroke = '#10b981';
       }
     }
 
@@ -224,13 +217,12 @@
     }
 
     // -------------------------------------------------------------
-    // ULTRA-FAST AUTO-SYNC POLLING LOOP (Checks every 200ms)
+    // OPTIMIZED AUTO-SYNC POLLING LOOP (Checks every 2 seconds)
     // -------------------------------------------------------------
     setInterval(function() {
       refreshProgress();
-    }, 200);
+    }, 2000);
 
-    // Bluetooth Scanner Keyboard Buffer Listener
     var scanBuffer = '';
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
@@ -334,7 +326,7 @@
         });
     }
 
-    setTimeout(refreshProgress, 200);
+    setTimeout(refreshProgress, 500);
   </script>
 </body>
 </html>
