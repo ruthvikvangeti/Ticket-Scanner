@@ -36,6 +36,13 @@
       pointer-events: none;
       z-index: 1;
     }
+    #debugText {
+      position: absolute;
+      bottom: -24px; left: 0;
+      font-size: 11px; color: #999;
+      z-index: 2; pointer-events: none;
+      width: 100%; text-align: center;
+    }
 
     .actionRow { display: flex; gap: 12px; width: 100%; max-width: 480px; flex-shrink: 0; }
     button {
@@ -107,6 +114,7 @@
   <div id="status">
     <canvas id="glassCanvas"></canvas>
     <span id="statusText">Ready to scan</span>
+    <span id="debugText">debug: waiting...</span>
   </div>
 
   <div class="actionRow">
@@ -251,11 +259,17 @@
 
     function refreshProgress() {
       if (!API_URL) return;
+      var debugEl = document.getElementById('debugText');
+      debugEl.textContent = 'debug: fetching...';
       callApi({ action: 'progress' }).then(function(result) {
         cachedTotal = result.totalGames || 0;
         cachedScanned = result.scannedToday || 0;
+        var pct = cachedTotal > 0 ? cachedScanned / cachedTotal : 0;
+        debugEl.textContent = 'debug: ' + cachedScanned + '/' + cachedTotal + ' = ' + Math.round(pct * 100) + '%';
         applyLiquidLevel();
-      }).catch(function(err) { /* progress is a nice-to-have, fail silently */ });
+      }).catch(function(err) {
+        debugEl.textContent = 'debug error: ' + err;
+      });
     }
 
     statusBox.addEventListener('click', function() {
