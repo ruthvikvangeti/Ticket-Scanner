@@ -16,69 +16,95 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      justify-content: center;
       min-height: 100vh;
     }
 
+    /* Outer Card Box */
     #status {
       width: 100%; max-width: 480px;
-      height: 260px;
-      margin-bottom: 20px;
+      height: 320px;
+      margin-bottom: 24px;
       position: relative;
       display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
       background: radial-gradient(ellipse at 50% 40%, #161b22 0%, #0d1117 70%);
       border-radius: 24px;
       border: 1px solid #30363d;
-    }
-    #glassCanvas { width: 100%; height: 100%; display: block; }
-    #statusText {
-      position: absolute;
-      font-size: 22px; font-weight: bold; color: #ffffff;
-      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
-      pointer-events: none;
-      z-index: 1;
-      text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
     }
 
+    /* Circular SVG Ring Setup */
+    .circle-container {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg); /* Start ring at top center */
+    }
+
+    circle {
+      fill: none;
+      stroke-width: 14;
+      stroke-linecap: round;
+    }
+
+    /* Background Ring Track */
+    .bg-ring {
+      stroke: rgba(255, 255, 255, 0.08);
+    }
+
+    /* Glowing Progress Ring Fill */
+    .progress-ring {
+      stroke: #00ff88;
+      stroke-dasharray: 565; /* Circumference of circle (2 * π * 90) */
+      stroke-dashoffset: 565; /* 565 = 0% filled */
+      transition: stroke-dashoffset 0.5s ease-in-out, stroke 0.3s ease;
+      filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.6));
+    }
+
+    /* Ring Center Label */
+    .ring-text {
+      position: absolute;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    #countDisplay {
+      font-size: 28px;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: 0.5px;
+    }
+
+    #pctDisplay {
+      font-size: 16px;
+      font-weight: 600;
+      color: #00ff88;
+      margin-top: 4px;
+    }
+
+    /* Action Buttons */
     .actionRow { display: flex; gap: 12px; width: 100%; max-width: 480px; flex-shrink: 0; }
     button {
       flex: 1; padding: 18px; font-size: 16px; font-weight: bold; color: white;
       border: none; border-radius: 16px; cursor: pointer;
       box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-      backdrop-filter: blur(20px) saturate(180%);
-      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       border: 1px solid rgba(255,255,255,0.15);
-      transform-style: preserve-3d;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      transition: transform 0.1s active;
     }
     #endDayBtn { background: rgba(52, 168, 83, 0.92); }
     #resetBtn { background: rgba(234, 67, 53, 0.92); }
 
-    @keyframes flipButtonVertical {
-      0%   { transform: rotateX(0deg); }
-      50%  { transform: rotateX(-92deg); }
-      100% { transform: rotateX(0deg); }
-    }
-    @keyframes breatheBounceGreen {
-      0%   { background: rgba(52, 168, 83, 0.92); animation-timing-function: ease-out; }
-      45%  { background: rgba(143, 217, 172, 0.85); animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.4); }
-      75%  { background: rgba(42, 129, 68, 0.95); }
-      100% { background: rgba(52, 168, 83, 0.92); }
-    }
-    @keyframes breatheBounceRed {
-      0%   { background: rgba(234, 67, 53, 0.92); animation-timing-function: ease-out; }
-      45%  { background: rgba(246, 167, 158, 0.85); animation-timing-function: cubic-bezier(0.68, -0.55, 0.265, 1.4); }
-      75%  { background: rgba(196, 39, 26, 0.95); }
-      100% { background: rgba(234, 67, 53, 0.92); }
-    }
-    #endDayBtn.flipping {
-      animation: flipButtonVertical 0.4s cubic-bezier(0.45, 0.05, 0.55, 0.95),
-                 breatheBounceGreen 0.65s ease-in-out;
-    }
-    #resetBtn.flipping {
-      animation: flipButtonVertical 0.4s cubic-bezier(0.45, 0.05, 0.55, 0.95),
-                 breatheBounceRed 0.65s ease-in-out;
-    }
+    button:active { transform: scale(0.97); }
 
     #configBox {
       width: 100%; max-width: 480px; margin-bottom: 16px; padding: 12px;
@@ -89,145 +115,32 @@
     }
     #configBox input { width: 100%; padding: 8px; margin-top: 6px; box-sizing: border-box; }
   </style>
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-      }
-    }
-  </script>
 </head>
 <body>
+
   <div id="configBox">
     <div>Apps Script URL (one-time setup):</div>
     <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
-    <button onclick="saveApiUrl()" style="margin-top:8px; background:#4285F4; border:none; color:#fff; border-radius:8px; padding:10px;">Save URL</button>
+    <button onclick="saveApiUrl()" style="margin-top:8px; background:#4285F4; border:none; color:#fff; border-radius:8px; padding:10px; width:100%;">Save URL</button>
   </div>
 
   <div id="status">
-    <canvas id="glassCanvas"></canvas>
-    <span id="statusText">Ready to scan</span>
+    <div class="circle-container">
+      <svg>
+        <circle class="bg-ring" cx="110" cy="110" r="90"></circle>
+        <circle class="progress-ring" id="ringFill" cx="110" cy="110" r="90"></circle>
+      </svg>
+      <div class="ring-text">
+        <div id="countDisplay">0 / 38</div>
+        <div id="pctDisplay">0% Scanned</div>
+      </div>
+    </div>
   </div>
 
   <div class="actionRow">
     <button id="endDayBtn" onclick="handleEndDay(event)">End of Day</button>
     <button id="resetBtn" onclick="handleReset(event)">Reset Day</button>
   </div>
-
-  <script type="module">
-    import * as THREE from 'three';
-    import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-    import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-
-    var statusEl = document.getElementById('status');
-    var canvas = document.getElementById('glassCanvas');
-
-    var scene = new THREE.Scene();
-    var camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
-    camera.position.set(0, 0, 8);
-
-    var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-
-    var pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-
-    var light1 = new THREE.DirectionalLight(0xffffff, 2.2);
-    light1.position.set(3, 6, 5);
-    scene.add(light1);
-    var light2 = new THREE.DirectionalLight(0x00e5ff, 1.2);
-    light2.position.set(-4, -3, 3);
-    scene.add(light2);
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-
-    // ---- Outer Glass Capsule ----
-    var glassGeo = new RoundedBoxGeometry(4.2, 1.7, 1.7, 6, 0.7);
-    var glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
-      transmission: 0.95,
-      roughness: 0.05,
-      thickness: 1.2,
-      ior: 1.5,
-      clearcoat: 1,
-      clearcoatRoughness: 0.03,
-      envMapIntensity: 1.8
-    });
-    var glass = new THREE.Mesh(glassGeo, glassMat);
-    scene.add(glass);
-
-    // ---- Inner Liquid Filling Horizontally (Left to Right) ----
-    var LIQUID_LEFT = -1.65;
-    var LIQUID_RIGHT = 1.65;
-
-    // Fixed Vector Direction: Vector3(-1, 0, 0) cuts from left to right
-    var clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), LIQUID_LEFT);
-    renderer.localClippingEnabled = true;
-
-    var liquidGeo = new RoundedBoxGeometry(4.0, 1.45, 1.45, 6, 0.58);
-    var liquidMatNormal = new THREE.MeshPhysicalMaterial({
-      color: 0x00e5ff,
-      emissive: 0x0097a7,
-      emissiveIntensity: 0.4,
-      transmission: 0.1,
-      roughness: 0.15,
-      thickness: 0.5,
-      ior: 1.33,
-      clippingPlanes: [clipPlane]
-    });
-    var liquidMatComplete = new THREE.MeshPhysicalMaterial({
-      color: 0x00ff88,
-      emissive: 0x00a859,
-      emissiveIntensity: 0.5,
-      transmission: 0.1,
-      roughness: 0.1,
-      thickness: 0.5,
-      ior: 1.33,
-      clippingPlanes: [clipPlane]
-    });
-    var liquid = new THREE.Mesh(liquidGeo, liquidMatNormal);
-    scene.add(liquid);
-
-    var currentFraction = 0;
-    var targetFraction = 0;
-
-    function setLiquidLevel(fraction) {
-      targetFraction = Math.max(0, Math.min(1, fraction));
-    }
-
-    function resizeRenderer() {
-      var w = statusEl.clientWidth;
-      var h = statusEl.clientHeight;
-      renderer.setSize(w, h, false);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-    }
-    window.addEventListener('resize', resizeRenderer);
-    new ResizeObserver(resizeRenderer).observe(statusEl);
-    resizeRenderer();
-
-    var clock = new THREE.Clock();
-    function animate() {
-      requestAnimationFrame(animate);
-      var t = clock.getElapsedTime();
-
-      // Smooth gradual rise/fill of liquid
-      currentFraction += (targetFraction - currentFraction) * 0.05;
-      
-      // Calculate plane constant for progressive fill
-      var currentX = LIQUID_LEFT + (LIQUID_RIGHT - LIQUID_LEFT) * currentFraction;
-      clipPlane.constant = currentX;
-
-      liquid.material = currentFraction >= 0.99 ? liquidMatComplete : liquidMatNormal;
-
-      glass.rotation.y = Math.sin(t * 0.3) * 0.15;
-      liquid.rotation.y = glass.rotation.y;
-      renderer.render(scene, camera);
-    }
-    animate();
-
-    window.setLiquidLevel = setLiquidLevel;
-  </script>
 
   <script>
     var API_URL = localStorage.getItem('appsScriptUrl') || '';
@@ -240,21 +153,39 @@
       localStorage.setItem('appsScriptUrl', url);
       API_URL = url;
       document.getElementById('configBox').style.display = 'none';
-      statusText.textContent = 'Saved. Ready to scan';
       refreshProgress();
     }
 
-    var statusBox = document.getElementById('status');
-    var statusText = document.getElementById('statusText');
-    var endDayBtn = document.getElementById('endDayBtn');
-    var resetBtn = document.getElementById('resetBtn');
-    var cachedTotal = 38, cachedScanned = 0;
+    var ringFill = document.getElementById('ringFill');
+    var countDisplay = document.getElementById('countDisplay');
+    var pctDisplay = document.getElementById('pctDisplay');
+
+    var cachedTotal = 38;
+    var cachedScanned = 0;
+    const CIRCUMFERENCE = 565; // 2 * π * 90
+
+    function setCircleProgress(fraction) {
+      var f = Math.max(0, Math.min(1, fraction));
+      // Calculate offset (565 = empty, 0 = fully filled circle)
+      var offset = CIRCUMFERENCE - (f * CIRCUMFERENCE);
+      ringFill.style.strokeDashoffset = offset;
+
+      // Color transition when complete
+      if (f >= 1) {
+        ringFill.style.stroke = '#3b82f6'; // Bright blue on 100% complete
+      } else {
+        ringFill.style.stroke = '#00ff88'; // Vibrant green while filling
+      }
+    }
 
     function applyLiquidLevel() {
       var pct = cachedTotal > 0 ? cachedScanned / cachedTotal : 0;
       var pctInt = Math.round(pct * 100);
-      statusText.textContent = cachedScanned + ' / ' + cachedTotal + ' (' + pctInt + '%)';
-      if (window.setLiquidLevel) window.setLiquidLevel(pct);
+      
+      countDisplay.textContent = cachedScanned + ' / ' + cachedTotal;
+      pctDisplay.textContent = pctInt + '% Scanned';
+      
+      setCircleProgress(pct);
     }
 
     function refreshProgress() {
@@ -266,10 +197,7 @@
       }).catch(function(err) { /* silent catch */ });
     }
 
-    statusBox.addEventListener('click', function() {
-      statusText.textContent = 'Reading...';
-    });
-
+    // Bluetooth Scanner Keyboard Buffer Listener
     var scanBuffer = '';
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
@@ -292,7 +220,6 @@
     function callApi(params) {
       return new Promise(function(resolve, reject) {
         if (!API_URL) {
-          statusText.textContent = 'Please set Apps Script URL above';
           document.getElementById('configBox').style.display = 'block';
           reject('no url');
           return;
@@ -351,38 +278,30 @@
     }
 
     function handleEndDay(event) {
-      endDayBtn.classList.remove('flipping'); void endDayBtn.offsetWidth; endDayBtn.classList.add('flipping');
-      setTimeout(function() { endDayBtn.classList.remove('flipping'); }, 650);
       if (!confirm('Close out the day? This archives everything.')) return;
-      statusText.textContent = 'Running End of Day...';
+      pctDisplay.textContent = 'Ending Day...';
       callApi({ action: 'endday' })
         .then(function(result) {
-          statusText.textContent = result.message || 'Day Ended';
           refreshProgress();
-          setTimeout(function() { statusText.textContent = 'Ready to scan'; }, 3000);
         })
         .catch(function(err) {
-          statusText.textContent = 'Error: ' + err;
+          pctDisplay.textContent = 'Error resetting';
         });
     }
 
     function handleReset(event) {
-      resetBtn.classList.remove('flipping'); void resetBtn.offsetWidth; resetBtn.classList.add('flipping');
-      setTimeout(function() { resetBtn.classList.remove('flipping'); }, 650);
       if (!confirm('Reset back to last End of Day?')) return;
-      statusText.textContent = 'Resetting...';
+      pctDisplay.textContent = 'Resetting...';
       callApi({ action: 'reset' })
         .then(function(result) {
-          statusText.textContent = result.message || 'Day Reset';
           refreshProgress();
-          setTimeout(function() { statusText.textContent = 'Ready to scan'; }, 2500);
         })
         .catch(function(err) {
-          statusText.textContent = 'Error: ' + err;
+          pctDisplay.textContent = 'Error resetting';
         });
     }
 
-    setTimeout(refreshProgress, 800);
+    setTimeout(refreshProgress, 500);
   </script>
 </body>
 </html>
