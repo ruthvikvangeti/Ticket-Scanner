@@ -11,7 +11,8 @@
       font-family: -apple-system, system-ui, sans-serif;
       margin: 0;
       padding: 20px;
-      background: #ffffff;
+      background: #0d1117;
+      color: #ffffff;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -25,26 +26,28 @@
       position: relative;
       display: flex; align-items: center; justify-content: center;
       cursor: pointer;
-      background: radial-gradient(ellipse at 50% 40%, #e8edf5 0%, #ffffff 70%);
+      background: radial-gradient(ellipse at 50% 40%, #161b22 0%, #0d1117 70%);
       border-radius: 24px;
+      border: 1px solid #30363d;
     }
     #glassCanvas { width: 100%; height: 100%; display: block; }
     #statusText {
       position: absolute;
-      font-size: 18px; font-weight: bold; color: #1a1a1a;
-      text-shadow: 0 1px 3px rgba(255,255,255,0.8);
+      font-size: 20px; font-weight: bold; color: #ffffff;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
       pointer-events: none;
       z-index: 1;
+      text-align: center;
     }
 
     .actionRow { display: flex; gap: 12px; width: 100%; max-width: 480px; flex-shrink: 0; }
     button {
       flex: 1; padding: 18px; font-size: 16px; font-weight: bold; color: white;
       border: none; border-radius: 16px; cursor: pointer;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.4);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
       backdrop-filter: blur(20px) saturate(180%);
       -webkit-backdrop-filter: blur(20px) saturate(180%);
-      border: 1px solid rgba(255,255,255,0.35);
+      border: 1px solid rgba(255,255,255,0.15);
       transform-style: preserve-3d;
       text-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
@@ -80,11 +83,9 @@
     #configBox {
       width: 100%; max-width: 480px; margin-bottom: 16px; padding: 12px;
       flex-shrink: 0;
-      background: rgba(240, 244, 255, 0.7);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-radius: 16px; border: 1px solid rgba(255,255,255,0.6); font-size: 13px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      background: #161b22;
+      border-radius: 16px; border: 1px solid #30363d; font-size: 13px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
     }
     #configBox input { width: 100%; padding: 8px; margin-top: 6px; box-sizing: border-box; }
   </style>
@@ -101,7 +102,7 @@
   <div id="configBox">
     <div>Apps Script URL (one-time setup):</div>
     <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
-    <button onclick="saveApiUrl()" style="margin-top:8px; background:#4285F4; padding:10px;">Save URL</button>
+    <button onclick="saveApiUrl()" style="margin-top:8px; background:#4285F4; border:none; color:#fff; border-radius:8px; padding:10px;">Save URL</button>
   </div>
 
   <div id="status">
@@ -128,7 +129,6 @@
 
     var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x000000, 0);
 
     var pmrem = new THREE.PMREMGenerator(renderer);
     scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -136,71 +136,64 @@
     var light1 = new THREE.DirectionalLight(0xffffff, 2.2);
     light1.position.set(3, 6, 5);
     scene.add(light1);
-    var light2 = new THREE.DirectionalLight(0xffffff, 1.0);
+    var light2 = new THREE.DirectionalLight(0x00e5ff, 1.2);
     light2.position.set(-4, -3, 3);
     scene.add(light2);
     scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 
-    // ---- Outer glass tube (rounded rectangular bar, matching reference) ----
+    // ---- Outer Glass Capsule ----
     var glassGeo = new RoundedBoxGeometry(4.2, 1.7, 1.7, 6, 0.7);
     var glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0xf4f8ff,
-      transmission: 0.55,
-      roughness: 0.08,
-      thickness: 1.5,
+      color: 0xffffff,
+      transmission: 0.95,
+      roughness: 0.05,
+      thickness: 1.2,
       ior: 1.5,
       clearcoat: 1,
       clearcoatRoughness: 0.03,
-      metalness: 0,
-      envMapIntensity: 1.8,
-      reflectivity: 0.6
+      envMapIntensity: 1.8
     });
     var glass = new THREE.Mesh(glassGeo, glassMat);
     scene.add(glass);
 
-    // ---- Inner liquid (cyan), revealed via a clipping plane for a clean
-    // flat liquid surface, filling left-to-right along the bar - avoids
-    // the distortion that scaling a rounded box's beveled ends would
-    // cause, and disappears completely at 0%.
+    // ---- Inner Liquid Filling Horizontally (Left to Right) ----
     var LIQUID_LEFT = -1.95;
     var LIQUID_RIGHT = 1.95;
 
-    var clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), LIQUID_LEFT);
+    // Normal pointing right (1, 0, 0) for progressive left-to-right fill
+    var clipPlane = new THREE.Plane(new THREE.Vector3(1, 0, 0), -LIQUID_LEFT);
     renderer.localClippingEnabled = true;
 
     var liquidGeo = new RoundedBoxGeometry(4.0, 1.45, 1.45, 6, 0.58);
     var liquidMatNormal = new THREE.MeshPhysicalMaterial({
       color: 0x00e5ff,
       emissive: 0x0097a7,
-      emissiveIntensity: 0.4,
-      transmission: 0.05,
-      roughness: 0.2,
-      thickness: 0.5,
-      ior: 1.33,
-      envMapIntensity: 1.0,
-      clippingPlanes: [clipPlane]
-    });
-    var liquidMatComplete = new THREE.MeshPhysicalMaterial({
-      color: 0x00838f,
-      emissive: 0x005662,
-      emissiveIntensity: 0.5,
-      transmission: 0.05,
+      emissiveIntensity: 0.3,
+      transmission: 0.1,
       roughness: 0.15,
       thickness: 0.5,
       ior: 1.33,
-      envMapIntensity: 1.2,
+      clippingPlanes: [clipPlane]
+    });
+    var liquidMatComplete = new THREE.MeshPhysicalMaterial({
+      color: 0x00ff88,
+      emissive: 0x00a859,
+      emissiveIntensity: 0.5,
+      transmission: 0.1,
+      roughness: 0.1,
+      thickness: 0.5,
+      ior: 1.33,
       clippingPlanes: [clipPlane]
     });
     var liquid = new THREE.Mesh(liquidGeo, liquidMatNormal);
     scene.add(liquid);
 
+    var currentFraction = 0;
+    var targetFraction = 0;
+
     function setLiquidLevel(fraction) {
-      var f = Math.max(0, Math.min(1, fraction));
-      var levelX = LIQUID_LEFT + (LIQUID_RIGHT - LIQUID_LEFT) * f;
-      clipPlane.constant = levelX;
-      liquid.material = f >= 1 ? liquidMatComplete : liquidMatNormal;
+      targetFraction = Math.max(0, Math.min(1, fraction));
     }
-    setLiquidLevel(0); // start completely empty, no visible sliver
 
     function resizeRenderer() {
       var w = statusEl.clientWidth;
@@ -210,8 +203,6 @@
       camera.updateProjectionMatrix();
     }
     window.addEventListener('resize', resizeRenderer);
-    // ResizeObserver catches the flex-computed size reliably, including
-    // right after the layout settles on page load.
     new ResizeObserver(resizeRenderer).observe(statusEl);
     resizeRenderer();
 
@@ -219,6 +210,14 @@
     function animate() {
       requestAnimationFrame(animate);
       var t = clock.getElapsedTime();
+
+      // Smooth gradual rise/fill of liquid
+      currentFraction += (targetFraction - currentFraction) * 0.05;
+      var currentX = LIQUID_LEFT + (LIQUID_RIGHT - LIQUID_LEFT) * currentFraction;
+      clipPlane.constant = -currentX;
+
+      liquid.material = currentFraction >= 0.99 ? liquidMatComplete : liquidMatNormal;
+
       glass.rotation.y = Math.sin(t * 0.3) * 0.15;
       liquid.rotation.y = glass.rotation.y;
       renderer.render(scene, camera);
@@ -240,36 +239,35 @@
       API_URL = url;
       document.getElementById('configBox').style.display = 'none';
       statusText.textContent = 'Saved. Ready to scan';
+      refreshProgress();
     }
 
     var statusBox = document.getElementById('status');
     var statusText = document.getElementById('statusText');
     var endDayBtn = document.getElementById('endDayBtn');
     var resetBtn = document.getElementById('resetBtn');
-    var cachedTotal = 0, cachedScanned = 0;
+    var cachedTotal = 38, cachedScanned = 0;
 
     function applyLiquidLevel() {
       var pct = cachedTotal > 0 ? cachedScanned / cachedTotal : 0;
+      var pctInt = Math.round(pct * 100);
+      statusText.textContent = cachedScanned + ' / ' + cachedTotal + ' (' + pctInt + '%)';
       if (window.setLiquidLevel) window.setLiquidLevel(pct);
     }
 
     function refreshProgress() {
       if (!API_URL) return;
       callApi({ action: 'progress' }).then(function(result) {
-        cachedTotal = result.totalGames || 0;
+        cachedTotal = result.totalGames || 38;
         cachedScanned = result.scannedToday || 0;
         applyLiquidLevel();
-      }).catch(function(err) { /* progress is a nice-to-have, fail silently */ });
+      }).catch(function(err) { /* silent catch */ });
     }
 
     statusBox.addEventListener('click', function() {
       statusText.textContent = 'Reading...';
     });
 
-    // No input element is ever focused, so there's nothing for iOS to show
-    // a keyboard for. The physical Bluetooth scanner sends real keydown
-    // events regardless of what has focus, so listening at the document
-    // level catches every scan without needing to focus anything at all.
     var scanBuffer = '';
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
@@ -282,8 +280,6 @@
         scanBuffer = scanBuffer.slice(0, -1);
         return;
       }
-      // Only accumulate real printable characters (digits from the
-      // scanner) - ignore modifier keys, arrows, etc.
       if (e.key.length === 1) {
         scanBuffer += e.key;
       }
@@ -294,7 +290,7 @@
     function callApi(params) {
       return new Promise(function(resolve, reject) {
         if (!API_URL) {
-          statusText.textContent = 'Please set your Apps Script URL above first';
+          statusText.textContent = 'Please set Apps Script URL above';
           document.getElementById('configBox').style.display = 'block';
           reject('no url');
           return;
@@ -319,25 +315,21 @@
           clearTimeout(timeoutId);
           delete window[callbackName];
           if (script.parentNode) document.body.removeChild(script);
-          reject('Could not reach the server. Check your Apps Script URL.');
+          reject('Server error');
         };
         document.body.appendChild(script);
 
         timeoutId = setTimeout(function() {
           delete window[callbackName];
           if (script.parentNode) document.body.removeChild(script);
-          reject('Request timed out. Check your connection.');
+          reject('Timeout');
         }, 15000);
       });
     }
 
     function submitScan(code) {
-      if (!code) { return; }
+      if (!code) return;
 
-      // Optimistic update: bump the fill immediately so it feels instant,
-      // rather than waiting for the round-trip to the server. The follow-up
-      // refreshProgress() call corrects this with the real confirmed count
-      // right after, and a failure rolls the bump back cleanly.
       var hadTotal = cachedTotal > 0;
       if (hadTotal) {
         cachedScanned = Math.min(cachedTotal, cachedScanned + 1);
@@ -359,11 +351,11 @@
     function handleEndDay(event) {
       endDayBtn.classList.remove('flipping'); void endDayBtn.offsetWidth; endDayBtn.classList.add('flipping');
       setTimeout(function() { endDayBtn.classList.remove('flipping'); }, 650);
-      if (!confirm('Close out the day? This archives everything and rolls forward to tomorrow.')) return;
+      if (!confirm('Close out the day? This archives everything.')) return;
       statusText.textContent = 'Running End of Day...';
       callApi({ action: 'endday' })
         .then(function(result) {
-          statusText.textContent = result.message;
+          statusText.textContent = result.message || 'Day Ended';
           refreshProgress();
           setTimeout(function() { statusText.textContent = 'Ready to scan'; }, 3000);
         })
@@ -375,11 +367,11 @@
     function handleReset(event) {
       resetBtn.classList.remove('flipping'); void resetBtn.offsetWidth; resetBtn.classList.add('flipping');
       setTimeout(function() { resetBtn.classList.remove('flipping'); }, 650);
-      if (!confirm('Reset back to last End of Day? This undoes today\'s scans.')) return;
+      if (!confirm('Reset back to last End of Day?')) return;
       statusText.textContent = 'Resetting...';
       callApi({ action: 'reset' })
         .then(function(result) {
-          statusText.textContent = result.message;
+          statusText.textContent = result.message || 'Day Reset';
           refreshProgress();
           setTimeout(function() { statusText.textContent = 'Ready to scan'; }, 2500);
         })
@@ -388,7 +380,7 @@
         });
     }
 
-    setTimeout(refreshProgress, 800); // slight delay so the module script's setLiquidLevel is ready
+    setTimeout(refreshProgress, 800);
   </script>
 </body>
 </html>
