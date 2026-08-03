@@ -36,13 +36,6 @@
       pointer-events: none;
       z-index: 1;
     }
-    #debugText2 {
-      position: absolute;
-      bottom: -24px; left: 0;
-      font-size: 11px; color: #999;
-      z-index: 2; pointer-events: none;
-      width: 100%; text-align: center;
-    }
 
     .actionRow { display: flex; gap: 12px; width: 100%; max-width: 480px; flex-shrink: 0; }
     button {
@@ -114,7 +107,6 @@
   <div id="status">
     <canvas id="glassCanvas"></canvas>
     <span id="statusText">Ready to scan</span>
-    <span id="debugText2">v2: waiting...</span>
   </div>
 
   <div class="actionRow">
@@ -178,21 +170,25 @@
 
     var liquidGeo = new RoundedBoxGeometry(4.0, 1.45, 1.45, 6, 0.58);
     var liquidMatNormal = new THREE.MeshPhysicalMaterial({
-      color: 0x00bcd4,
-      transmission: 0.35,
-      roughness: 0.12,
-      thickness: 1.2,
+      color: 0x00e5ff,
+      emissive: 0x0097a7,
+      emissiveIntensity: 0.4,
+      transmission: 0.05,
+      roughness: 0.2,
+      thickness: 0.5,
       ior: 1.33,
-      envMapIntensity: 1.4,
+      envMapIntensity: 1.0,
       clippingPlanes: [clipPlane]
     });
     var liquidMatComplete = new THREE.MeshPhysicalMaterial({
       color: 0x00838f,
-      transmission: 0.25,
-      roughness: 0.08,
-      thickness: 1.2,
+      emissive: 0x005662,
+      emissiveIntensity: 0.5,
+      transmission: 0.05,
+      roughness: 0.15,
+      thickness: 0.5,
       ior: 1.33,
-      envMapIntensity: 1.6,
+      envMapIntensity: 1.2,
       clippingPlanes: [clipPlane]
     });
     var liquid = new THREE.Mesh(liquidGeo, liquidMatNormal);
@@ -230,9 +226,6 @@
     animate();
 
     window.setLiquidLevel = setLiquidLevel;
-    window.getClipDebugInfo = function() {
-      return 'const=' + clipPlane.constant.toFixed(2) + ',L=' + LIQUID_LEFT + ',R=' + LIQUID_RIGHT;
-    };
   </script>
 
   <script>
@@ -262,18 +255,11 @@
 
     function refreshProgress() {
       if (!API_URL) return;
-      var debugEl = document.getElementById('debugText2');
-      debugEl.textContent = 'v2: fetching...';
       callApi({ action: 'progress' }).then(function(result) {
         cachedTotal = result.totalGames || 0;
         cachedScanned = result.scannedToday || 0;
-        var pct = cachedTotal > 0 ? cachedScanned / cachedTotal : 0;
         applyLiquidLevel();
-        var clipInfo = window.getClipDebugInfo ? window.getClipDebugInfo() : 'n/a';
-        debugEl.textContent = 'v2: ' + cachedScanned + '/' + cachedTotal + '=' + Math.round(pct*100) + '% | clip=' + clipInfo;
-      }).catch(function(err) {
-        debugEl.textContent = 'v2 error: ' + err;
-      });
+      }).catch(function(err) { /* progress is a nice-to-have, fail silently */ });
     }
 
     statusBox.addEventListener('click', function() {
