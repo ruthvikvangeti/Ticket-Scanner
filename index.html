@@ -11,9 +11,9 @@
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
-      font-family: -apple-system, system-ui, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       margin: 0; padding: 20px;
-      background: #f8fafc; color: #0f172a;
+      background: #0f172a; color: #f8fafc;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       min-height: 100vh;
     }
@@ -21,22 +21,22 @@
     #status {
       width: 100%; max-width: 480px; height: 320px; margin-bottom: 20px;
       position: relative; display: flex; align-items: center; justify-content: center;
-      background: #ffffff; border-radius: 28px; border: 1px solid #e2e8f0;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      background: #1e293b; border-radius: 28px; border: 1px solid #334155;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
     }
 
     .circle-container { position: relative; width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; }
     svg { width: 100%; height: 100%; transform: rotate(-90deg); }
     circle { fill: none; stroke-width: 14; stroke-linecap: round; }
-    .bg-ring { stroke: #f1f5f9; }
+    .bg-ring { stroke: #334155; }
     .progress-ring {
       stroke: #00F0FF; stroke-dasharray: 565; stroke-dashoffset: 565;
       transition: stroke-dashoffset 0.12s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.2s ease;
-      filter: drop-shadow(0 4px 8px rgba(0, 240, 255, 0.35));
+      filter: drop-shadow(0 4px 10px rgba(0, 240, 255, 0.4));
     }
 
     .ring-text { position: absolute; text-align: center; pointer-events: none; }
-    #countDisplay { font-size: 36px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+    #countDisplay { font-size: 36px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
 
     #syncIndicator {
       position: absolute; bottom: 16px; font-size: 11px; font-weight: 600;
@@ -50,78 +50,119 @@
     .btnGroup { display: flex; gap: 10px; }
     button {
       flex: 1; padding: 16px; font-size: 15px; font-weight: 700; color: white;
-      border: none; border-radius: 16px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: all 0.15s ease;
+      border: none; border-radius: 16px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.15s ease;
     }
-    #previewBtn { background: #2563eb; color: #ffffff; }
-    #endDayBtn { background: #00F0FF; color: #0f172a; }
+    #previewBtn { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; border: 1px solid #3b82f6; }
+    #endDayBtn { background: #00F0FF; color: #0f172a; font-weight: 800; }
     #resetBtn { background: #ef4444; }
     button:active { transform: scale(0.97); }
 
-    /* MODAL POPUP */
+    /* ON-SCREEN PREVIEW MODAL */
     #previewModal {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px);
-      z-index: 999; align-items: center; justify-content: center; padding: 12px;
+      background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px);
+      z-index: 999; align-items: center; justify-content: center; padding: 16px;
     }
     .modal-card {
-      background: #ffffff; border-radius: 20px; width: 100%; max-width: 680px;
-      max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
-      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.3);
+      background: #1e293b; border-radius: 24px; width: 100%; max-width: 960px;
+      max-height: 92vh; display: flex; flex-direction: column; overflow: hidden;
+      border: 1px solid #334155; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
     }
     .modal-header {
-      padding: 16px 20px; background: #0f172a; color: white;
-      display: flex; justify-content: space-between; align-items: center;
+      padding: 18px 24px; background: #0f172a; color: white;
+      display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;
     }
-    .modal-body { padding: 16px; overflow-y: auto; flex: 1; background: #ffffff; }
-    .modal-footer { padding: 14px 20px; border-top: 1px solid #cbd5e1; display: flex; gap: 10px; background: #f8fafc; }
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1; background: #0f172a; color: #f8fafc; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid #334155; display: flex; gap: 12px; background: #1e293b; }
 
-    /* ULTRA INK-ECONOMICAL PRINT TABLE */
+    /* ON-SCREEN MULTI-COLUMN LAYOUT */
+    .report-grid-container {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+    @media (max-width: 768px) {
+      .report-grid-container { grid-template-columns: 1fr; }
+    }
+
     table.excel-table {
-      width: 100%; border-collapse: collapse; font-size: 12px; font-family: Calibri, sans-serif;
-      border: 1px solid #64748b; background: #ffffff; color: #000000;
+      width: 100%; border-collapse: collapse; font-size: 12px; font-family: -apple-system, sans-serif;
+      border: 1px solid #334155; background: #1e293b; color: #f8fafc; margin-bottom: 12px;
     }
     table.excel-table th, table.excel-table td {
-      border: 1px solid #cbd5e1; padding: 4px 6px; text-align: center;
+      border: 1px solid #334155; padding: 5px 8px; text-align: center;
     }
     table.excel-table th {
-      background: #ffffff; font-weight: 700; color: #000000; text-transform: uppercase; font-size: 11px;
-      border-bottom: 2px solid #000000;
+      background: #0f172a; font-weight: 700; color: #38bdf8; text-transform: uppercase; font-size: 11px;
     }
     .section-header-row td {
-      background: #ffffff; font-weight: 800; font-size: 13px; color: #000000; text-align: left !important;
-      padding-left: 8px; border-top: 2px solid #000000; border-bottom: 1px solid #000000;
+      background: #334155; font-weight: 800; font-size: 13px; color: #38bdf8; text-align: left !important;
+      padding-left: 10px;
     }
     .subtotal-row td {
-      background: #ffffff; font-weight: 700; color: #000000; border-top: 1px dashed #000000; border-bottom: 1px solid #000000;
+      background: #1e293b; font-weight: 700; color: #f1f5f9; border-top: 2px solid #475569;
     }
-    .grand-total-row td {
-      background: #ffffff; font-weight: 800; font-size: 14px; color: #000000; border-top: 2px solid #000000; border-bottom: 3px double #000000;
+    .grand-total-banner {
+      grid-column: 1 / -1; background: linear-gradient(135deg, #1e3a8a, #0284c7);
+      padding: 14px; border-radius: 12px; text-align: center; font-size: 16px; font-weight: 800; color: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3); margin-bottom: 16px;
     }
 
-    /* INVERTED BOOK-CHANGE BADGE (Black Cell / White Text) */
+    /* INK-SAVER GRAY BADGE FOR CHANGED BOOKS (Screen & Print) */
     .book-changed-badge {
-      background-color: #000000 !important; color: #ffffff !important;
+      background-color: #666666 !important; color: #ffffff !important;
       font-weight: 800; padding: 2px 6px; border-radius: 4px; display: inline-block;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
 
-    /* PRINT-ONLY INK SAVER OVERRIDES */
+    /* 🖨️ LANDSCAPE 1-PAGE ULTRA INK-SAVER PRINT CSS RULES */
+    @page {
+      size: landscape;
+      margin: 0.35in;
+    }
+
     @media print {
       body * { visibility: hidden; }
       #printArea, #printArea * { visibility: visible; }
-      #printArea { position: absolute; left: 0; top: 0; width: 100%; padding: 0; background: #ffffff; }
+      #printArea {
+        position: absolute; left: 0; top: 0; width: 100%; padding: 0; background: #ffffff !important; color: #000000 !important;
+      }
       .no-print { display: none !important; }
-      
-      table.excel-table { border: 1px solid #000000 !important; }
-      table.excel-table th, table.excel-table td { border: 1px solid #666666 !important; background: #ffffff !important; color: #000000 !important; }
-      .book-changed-badge { background-color: #000000 !important; color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+      .grand-total-banner {
+        background: #ffffff !important; color: #000000 !important; border: 2px solid #000000 !important;
+        box-shadow: none !important; font-size: 12px !important; padding: 5px !important; margin-bottom: 8px !important;
+      }
+
+      .report-grid-container {
+        display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px !important;
+      }
+
+      table.excel-table {
+        border: 1px solid #000000 !important; background: #ffffff !important; color: #000000 !important;
+        font-size: 9.5px !important; margin-bottom: 0 !important;
+      }
+      table.excel-table th, table.excel-table td {
+        border: 1px solid #000000 !important; padding: 2px 4px !important; background: #ffffff !important; color: #000000 !important;
+      }
+      table.excel-table th {
+        font-weight: 800 !important; border-bottom: 2px solid #000000 !important;
+      }
+      .section-header-row td {
+        font-weight: 800 !important; border-top: 2px solid #000000 !important; border-bottom: 1px solid #000000 !important;
+      }
+      .subtotal-row td {
+        font-weight: 700 !important; border-top: 1px dashed #000000 !important;
+      }
+      .book-changed-badge {
+        background-color: #666666 !important; color: #ffffff !important;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      }
     }
 
     #configBox {
       width: 100%; max-width: 480px; margin-bottom: 16px; padding: 16px;
-      background: #ffffff; border-radius: 18px; border: 1px solid #e2e8f0; font-size: 13px;
+      background: #1e293b; border-radius: 18px; border: 1px solid #334155; font-size: 13px;
     }
-    #configBox input { width: 100%; padding: 10px; margin-top: 8px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; }
+    #configBox input { width: 100%; padding: 10px; margin-top: 8px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: white; box-sizing: border-box; }
   </style>
 </head>
 <body>
@@ -157,17 +198,17 @@
   <div id="previewModal">
     <div class="modal-card">
       <div class="modal-header">
-        <h3 style="margin:0; font-size:16px;">Daily Entry Preview</h3>
+        <h3 style="margin:0; font-size:16px;">Daily Ticket Sales Report</h3>
         <button onclick="closePreview()" style="background:transparent; border:none; color:white; font-size:20px; cursor:pointer; padding:0;">✕</button>
       </div>
       <div class="modal-body" id="printArea">
         <div id="modalReportContent">
-          <div style="text-align:center; padding:20px; color:#64748b;">Loading live report data...</div>
+          <div style="text-align:center; padding:30px; color:#94a3b8;">Fetching live report data...</div>
         </div>
       </div>
       <div class="modal-footer no-print">
-        <button onclick="window.print()" style="background:#16a34a; color:white;">🖨️ Print Report</button>
-        <button onclick="closePreview()" style="background:#64748b; color:white;">Close</button>
+        <button onclick="window.print()" style="background:#16a34a; color:white; font-weight:bold;">🖨️ Print 1-Page Landscape</button>
+        <button onclick="closePreview()" style="background:#475569; color:white;">Close</button>
       </div>
     </div>
   </div>
@@ -288,11 +329,11 @@
 
     function openPreview() {
       document.getElementById('previewModal').style.display = 'flex';
-      document.getElementById('modalReportContent').innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;">Fetching live report data...</div>';
+      document.getElementById('modalReportContent').innerHTML = '<div style="text-align:center; padding:30px; color:#94a3b8;">Fetching live report data...</div>';
 
       callApi({ action: 'preview' }).then(function(res) {
         if (res && res.success && res.report) {
-          renderExcelReportHTML(res.report);
+          renderLandscapeReportHTML(res.report);
         } else {
           document.getElementById('modalReportContent').innerHTML = '<div style="color:#ef4444; text-align:center;">Failed to load preview data.</div>';
         }
@@ -305,46 +346,59 @@
       document.getElementById('previewModal').style.display = 'none';
     }
 
-    function renderExcelReportHTML(rpt) {
-      var html = '<div style="text-align:center; font-weight:bold; font-size:14px; margin-bottom:8px;">DAILY ENTRY REPORT — ' + rpt.date + '</div>';
+    function renderLandscapeReportHTML(rpt) {
+      var html = '<div class="grand-total-banner">' +
+        'DAILY ENTRY REPORT — ' + rpt.date + ' &nbsp;|&nbsp; ' +
+        'TOTAL TICKETS SOLD: ' + rpt.grandTotalTickets + ' &nbsp;|&nbsp; ' +
+        'TOTAL REVENUE: $' + rpt.grandTotalValue.toLocaleString('en-US') +
+      '</div>';
 
-      html += '<table class="excel-table"><thead><tr>' +
-        '<th>Game</th><th>Book</th><th>Start</th><th>End</th><th>No. Sold</th><th>Value ($)</th>' +
-      '</tr></thead><tbody>';
+      html += '<div class="report-grid-container">';
 
-      rpt.sections.forEach(function(sec) {
-        html += '<tr class="section-header-row"><td colspan="6">$' + sec.price + ' GAMES</td></tr>';
+      var leftSections = rpt.sections.slice(0, 4); // $1, $2, $3, $5
+      var rightSections = rpt.sections.slice(4);   // $10, $20, $30, $50
 
-        sec.rows.forEach(function(r) {
-          var bookDisplay = r.bookChanged
-            ? '<span class="book-changed-badge">' + r.book + '</span>'
-            : r.book;
+      html += '<div class="grid-col">';
+      leftSections.forEach(function(sec) { html += buildSectionTableHTML(sec); });
+      html += '</div>';
 
-          html += '<tr>' +
-            '<td><b>' + r.game + '</b></td>' +
-            '<td>' + bookDisplay + '</td>' +
-            '<td>' + r.start + '</td>' +
-            '<td>' + r.end + '</td>' +
-            '<td>' + r.sold + '</td>' +
-            '<td>$' + r.value.toFixed(2) + '</td>' +
-          '</tr>';
-        });
+      html += '<div class="grid-col">';
+      rightSections.forEach(function(sec) { html += buildSectionTableHTML(sec); });
+      html += '</div>';
 
-        html += '<tr class="subtotal-row">' +
-          '<td colspan="4" style="text-align:right;"><b>SUBTOTAL ($' + sec.price + ')</b></td>' +
-          '<td><b>' + sec.subtotalTickets + '</b></td>' +
-          '<td><b>$' + sec.subtotalValue.toFixed(2) + '</b></td>' +
+      html += '</div>';
+
+      document.getElementById('modalReportContent').innerHTML = html;
+    }
+
+    function buildSectionTableHTML(sec) {
+      var tbl = '<table class="excel-table"><thead>' +
+        '<tr class="section-header-row"><td colspan="6">$' + sec.price + ' GAMES</td></tr>' +
+        '<tr><th>Game</th><th>Book</th><th>Start</th><th>End</th><th>Sold</th><th>Total ($)</th></tr>' +
+      '</thead><tbody>';
+
+      sec.rows.forEach(function(r) {
+        var bookDisplay = r.bookChanged
+          ? '<span class="book-changed-badge">' + r.book + '</span>'
+          : r.book;
+
+        tbl += '<tr>' +
+          '<td><b>' + r.game + '</b></td>' +
+          '<td>' + bookDisplay + '</td>' +
+          '<td>' + r.start + '</td>' +
+          '<td>' + r.end + '</td>' +
+          '<td>' + r.sold + '</td>' +
+          '<td>$' + Math.round(r.value) + '</td>' +
         '</tr>';
       });
 
-      html += '<tr class="grand-total-row">' +
-        '<td colspan="4" style="text-align:right;"><b>GRAND TOTAL</b></td>' +
-        '<td><b>' + rpt.grandTotalTickets + '</b></td>' +
-        '<td><b>$' + rpt.grandTotalValue.toFixed(2) + '</b></td>' +
-      '</tr>';
+      tbl += '<tr class="subtotal-row">' +
+        '<td colspan="4" style="text-align:right;"><b>SUBTOTAL ($' + sec.price + ')</b></td>' +
+        '<td><b>' + sec.subtotalTickets + '</b></td>' +
+        '<td><b>$' + Math.round(sec.subtotalValue) + '</b></td>' +
+      '</tr></tbody></table>';
 
-      html += '</tbody>mtable>';
-      document.getElementById('modalReportContent').innerHTML = html;
+      return tbl;
     }
 
     var jsonpCounter = 0;
