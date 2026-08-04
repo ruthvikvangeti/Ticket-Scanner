@@ -21,26 +21,29 @@
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
-      padding: 12px 16px 16px 16px;
+      padding: 12px 16px 12px 16px;
       background: #f8fafc; color: #0f172a;
-      display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
       min-height: 100vh;
       padding-top: max(12px, env(safe-area-inset-top));
-      padding-bottom: max(16px, env(safe-area-inset-bottom));
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
     }
 
-    /* COMPACT ZERO-SCROLL STATUS CARD */
-    #status {
-      width: 100%; max-width: 480px; flex: 1; max-height: 300px;
-      margin-top: 0; margin-bottom: 12px;
-      position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    #mainCard {
+      width: 100%; max-width: 440px; height: 100%; max-height: calc(100vh - 24px);
+      display: flex; flex-direction: column; align-items: center; justify-content: space-between;
       background: #ffffff; border-radius: 28px; border: 1px solid #e2e8f0;
+      padding: 16px 16px 18px 16px;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
     }
 
-    .circle-container { position: relative; width: 210px; height: 210px; display: flex; align-items: center; justify-content: center; }
+    .circle-container {
+      position: relative; width: 230px; height: 230px;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 4px;
+    }
     svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-    circle { fill: none; stroke-width: 15; stroke-linecap: round; }
+    circle { fill: none; stroke-width: 16; stroke-linecap: round; }
     .bg-ring { stroke: #f1f5f9; }
     .progress-ring {
       stroke: #00F0FF; stroke-dasharray: 660; stroke-dashoffset: 660;
@@ -50,36 +53,31 @@
     }
 
     .ring-text { position: absolute; text-align: center; pointer-events: none; }
-    #countDisplay { font-size: 38px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+    #countDisplay { font-size: 40px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
 
-    /* FIXED POSITION SYNC INDICATOR */
     #syncIndicator {
-      position: absolute; bottom: 14px; font-size: 12px; font-weight: 700;
-      color: #64748b; display: flex; align-items: center; justify-content: center; gap: 8px;
-      width: 100%; text-align: center;
+      margin-top: 6px; margin-bottom: 12px;
+      font-size: 12px; font-weight: 700; color: #64748b;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
     }
 
-    /* DEDICATED FIXED LIGHT DOT */
     .dot {
       width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0;
       transition: background-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    /* IDLE SYNC STATE: ELECTRIC CYAN */
     .dot.idle {
       background-color: #00F0FF;
       box-shadow: 0 0 8px rgba(0, 240, 255, 0.85);
       animation: none;
     }
 
-    /* BACKGROUND COMMUNICATING STATE: ANIMATED ORANGE */
     .dot.syncing {
       background-color: #FF9500;
       box-shadow: 0 0 8px rgba(255, 149, 0, 0.85);
       animation: pulseOrange 0.9s infinite ease-in-out;
     }
 
-    /* ERROR / DISCONNECTED STATE: ANIMATED RED */
     .dot.error {
       background-color: #ef4444;
       box-shadow: 0 0 8px rgba(239, 68, 68, 0.85);
@@ -98,11 +96,11 @@
       100% { transform: scale(0.9); opacity: 0.7; }
     }
 
-    .actionRow { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 480px; margin-bottom: 0; }
+    .actionRow { display: flex; flex-direction: column; gap: 10px; width: 100%; }
     .btnGroup { display: flex; gap: 10px; }
     button {
-      flex: 1; padding: 15px; font-size: 15px; font-weight: 700; color: white;
-      border: none; border-radius: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: transform 0.1s ease;
+      flex: 1; padding: 14px; font-size: 15px; font-weight: 700; color: white;
+      border: none; border-radius: 16px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: transform 0.1s ease;
     }
     #previewBtn { background: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; font-size: 16px; }
     #endDayBtn { background: #00F0FF; color: #0f172a; font-weight: 800; }
@@ -157,7 +155,6 @@
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
 
-    /* 🖨️ LANDSCAPE 1-PAGE ULTRA INK-SAVER PRINT RULES */
     @page { size: landscape; margin: 0.35in; }
     @media print {
       body * { visibility: hidden; }
@@ -174,7 +171,7 @@
     }
 
     #configBox {
-      width: 100%; max-width: 480px; margin-bottom: 12px; padding: 14px;
+      width: 100%; max-width: 440px; margin-bottom: 10px; padding: 12px;
       background: #ffffff; border-radius: 18px; border: 1px solid #e2e8f0; font-size: 13px;
     }
     #configBox input { width: 100%; padding: 10px; margin-top: 6px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; box-sizing: border-box; }
@@ -188,7 +185,7 @@
     <button onclick="saveApiUrl()" style="margin-top:10px; background:#2563eb; color:#fff; border:none; padding:10px; width:100%; border-radius:8px; font-weight:bold;">Save URL</button>
   </div>
 
-  <div id="status">
+  <div id="mainCard">
     <div class="circle-container">
       <svg viewBox="0 0 230 230">
         <circle class="bg-ring" cx="115" cy="115" r="105"></circle>
@@ -198,18 +195,19 @@
         <div id="countDisplay">0 / 42</div>
       </div>
     </div>
-    <div id="syncIndicator"><span class="dot idle" id="syncDot"></span> <span id="syncText">Live Sync Active</span></div>
-  </div>
 
-  <div class="actionRow">
-    <button id="previewBtn" onclick="openPreview()">Preview & Print</button>
-    <div class="btnGroup">
-      <button id="endDayBtn" onclick="handleEndDay(event)">End of Day</button>
-      <button id="resetBtn" onclick="handleReset(event)">Reset Day</button>
+    <div id="syncIndicator"><span class="dot idle" id="syncDot"></span> <span id="syncText">Live Sync Active</span></div>
+
+    <div class="actionRow">
+      <button id="previewBtn" onclick="openPreview()">Preview & Print</button>
+      <div class="btnGroup">
+        <button id="endDayBtn" onclick="handleEndDay(event)">End of Day</button>
+        <button id="resetBtn" onclick="handleReset(event)">Reset Day</button>
+      </div>
     </div>
   </div>
 
-  <!-- PREVIEW & PRINT MODAL -->
+  <!-- PREVIEW MODAL -->
   <div id="previewModal">
     <div class="modal-card">
       <div class="modal-header">
@@ -271,48 +269,44 @@
 
     applyLiquidLevel();
 
-    // 3-STATE DYNAMIC STATUS UPDATER (IDLE = CYAN, SYNCING = ORANGE, ERROR = RED)
     function updateSyncStatus(state, customMessage) {
       if (state === 'error') {
         syncDot.className = "dot error";
-        syncText.textContent = customMessage || "Connection Failed — Retrying...";
+        syncText.textContent = customMessage || "Backend Choked — Auto Retrying...";
       } else if (state === 'syncing') {
         syncDot.className = "dot syncing";
-        syncText.textContent = customMessage || ("Syncing (" + scanQueue.length + " left)...");
+        syncText.textContent = customMessage || ("Channelizing (" + scanQueue.length + " queued)...");
       } else {
         syncDot.className = "dot idle";
         syncText.textContent = "Live Sync Active";
       }
     }
 
-    function refreshProgress() {
-      if (!API_URL || isProcessingQueue || scanQueue.length > 0) return;
+    function sendWarmUpPing() {
+      if (!API_URL) return;
       callApi({ action: 'progress' }).then(function(result) {
         if (result && result.totalGames > 0 && scanQueue.length === 0) {
           cachedTotal = result.totalGames;
           cachedScanned = result.scannedToday;
           applyLiquidLevel();
           updateSyncStatus('idle');
-        } else if (result && !result.success) {
-          updateSyncStatus('error', result.message || "Server Communication Error");
         }
-      }).catch(function(err) {
-        if (scanQueue.length === 0) {
-          updateSyncStatus('error', "Connection Failed — Offline");
-        }
-      });
+      }).catch(function(err) {});
     }
 
-    setInterval(refreshProgress, 2500);
+    // SILENT INSTANT WARM-UP PING ON LOAD
+    sendWarmUpPing();
+    setInterval(sendWarmUpPing, 3500);
 
     var scanBuffer = '';
     var scanTimeout;
 
+    // HIGH-SPEED ZERO-DELAY 32MS BARCODE RECEIVER
     document.addEventListener('keydown', function(e) {
-      clearTimeout(scanTimeout);
-
+      // If scanner hits 'Enter', submit instantly without waiting for timeout
       if (e.key === 'Enter') {
         e.preventDefault();
+        clearTimeout(scanTimeout);
         var codeToSubmit = scanBuffer.trim();
         scanBuffer = '';
         if (codeToSubmit) enqueueScan(codeToSubmit);
@@ -325,20 +319,35 @@
         scanBuffer += e.key;
       }
 
-      scanTimeout = setTimeout(function() { scanBuffer = ''; }, 80);
+      // Reset buffer only after 100ms of complete silence
+      clearTimeout(scanTimeout);
+      scanTimeout = setTimeout(function() {
+        if (scanBuffer.trim().length >= 10) {
+          enqueueScan(scanBuffer.trim());
+        }
+        scanBuffer = '';
+      }, 100);
     });
 
+    // INSTANT CAPTURE ENGINE (HOLDS BARCODES WITHOUT DROPPING)
     function enqueueScan(code) {
+      var cleanCode = String(code).replace(/\D/g, '').trim();
+      
+      if (cleanCode.length < 10) return; // Ignore accidental keyboard presses
+
       if (navigator.vibrate) navigator.vibrate(30);
 
+      // Increment optimistic UI state immediately
       cachedScanned = Math.min(cachedTotal, cachedScanned + 1);
       applyLiquidLevel();
 
-      scanQueue.push(code);
+      // Push barcode into the queue hold tank
+      scanQueue.push(cleanCode);
       updateSyncStatus('syncing');
       processNextQueueItem();
     }
 
+    // CHANNELIZED SINGLE-PIPE CHANNEL TO GOOGLE SCRIPT WITH RE-TRY ON CHOKE
     function processNextQueueItem() {
       if (isProcessingQueue || scanQueue.length === 0) {
         if (scanQueue.length === 0) updateSyncStatus('idle');
@@ -347,31 +356,33 @@
 
       isProcessingQueue = true;
       var currentCode = scanQueue[0];
-      updateSyncStatus('syncing', "Syncing scan (" + scanQueue.length + " left)...");
+      updateSyncStatus('syncing', "Channelizing scan (" + scanQueue.length + " queued)...");
 
       callApi({ action: 'scan', code: currentCode })
         .then(function(result) {
-          scanQueue.shift();
-          isProcessingQueue = false;
-
-          if (!result || !result.success) {
-            cachedScanned = Math.max(0, cachedScanned - 1);
-            applyLiquidLevel();
-            updateSyncStatus('error', result ? result.message : "Scan Failed — Retrying...");
-          } else {
+          if (result && result.success) {
+            // CONFIRMED WRITE -> Remove from queue array
+            scanQueue.shift();
+            isProcessingQueue = false;
             updateSyncStatus('idle');
-          }
 
-          if (scanQueue.length > 0) {
-            processNextQueueItem();
+            if (scanQueue.length > 0) {
+              processNextQueueItem();
+            } else {
+              setTimeout(sendWarmUpPing, 200);
+            }
           } else {
-            setTimeout(refreshProgress, 200);
+            // SCRIPT CHOKED/BUSY -> Retain barcode in scanQueue[0], turn dot red, retry
+            isProcessingQueue = false;
+            updateSyncStatus('error', "Backend Busy — Re-sending Scan...");
+            setTimeout(processNextQueueItem, 1000);
           }
         })
         .catch(function(err) {
+          // NETWORK CHOKED/COLD START -> Retain barcode in scanQueue[0], turn dot red, retry
           isProcessingQueue = false;
-          updateSyncStatus('error', "Connection Failed — Retrying Scan...");
-          setTimeout(processNextQueueItem, 1500);
+          updateSyncStatus('error', "Waking Server — Retrying Scan...");
+          setTimeout(processNextQueueItem, 1200);
         });
     }
 
@@ -446,7 +457,7 @@
           delete window[callbackName];
           if (script.parentNode) document.body.removeChild(script);
           reject(new Error('Timeout'));
-        }, 8000);
+        }, 9000);
 
         window[callbackName] = function(result) {
           clearTimeout(timeoutId);
@@ -474,7 +485,7 @@
       updateSyncStatus('syncing', "Closing out day...");
       callApi({ action: 'endday' }).then(function(res) {
         if (res && res.success) {
-          refreshProgress();
+          sendWarmUpPing();
           updateSyncStatus('idle');
         } else {
           updateSyncStatus('error', "End of Day Failed");
@@ -489,7 +500,7 @@
       updateSyncStatus('syncing', "Resetting day...");
       callApi({ action: 'reset' }).then(function(res) {
         if (res && res.success) {
-          refreshProgress();
+          sendWarmUpPing();
           updateSyncStatus('idle');
         } else {
           updateSyncStatus('error', "Reset Failed");
