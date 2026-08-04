@@ -17,65 +17,73 @@
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
-      height: 100%; width: 100%; margin: 0; padding: 0;
+      height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
-      padding: 20px 20px 28px 20px;
+      padding: 12px 16px 16px 16px;
       background: #f8fafc; color: #0f172a;
       display: flex; flex-direction: column; align-items: center; justify-content: space-between;
       min-height: 100vh;
-      padding-top: max(20px, env(safe-area-inset-top));
-      padding-bottom: max(28px, env(safe-area-inset-bottom));
+      padding-top: max(12px, env(safe-area-inset-top));
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
     }
 
-    /* ENLARGED STATUS CARD TO OCCUPY FULL SCREEN SPACE */
+    /* COMPACT ZERO-SCROLL STATUS CARD */
     #status {
-      width: 100%; max-width: 480px; flex: 1; max-height: 380px;
-      margin-top: 5px; margin-bottom: 20px;
+      width: 100%; max-width: 480px; flex: 1; max-height: 300px;
+      margin-top: 0; margin-bottom: 12px;
       position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: #ffffff; border-radius: 32px; border: 1px solid #e2e8f0;
-      box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.06);
-      will-change: transform;
+      background: #ffffff; border-radius: 28px; border: 1px solid #e2e8f0;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
     }
 
-    .circle-container { position: relative; width: 260px; height: 260px; display: flex; align-items: center; justify-content: center; }
+    .circle-container { position: relative; width: 210px; height: 210px; display: flex; align-items: center; justify-content: center; }
     svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-    circle { fill: none; stroke-width: 16; stroke-linecap: round; }
+    circle { fill: none; stroke-width: 15; stroke-linecap: round; }
     .bg-ring { stroke: #f1f5f9; }
     .progress-ring {
       stroke: #00F0FF; stroke-dasharray: 660; stroke-dashoffset: 660;
       opacity: 0;
       transition: stroke-dashoffset 0.08s linear, opacity 0.15s ease;
-      filter: drop-shadow(0 4px 12px rgba(0, 240, 255, 0.45));
+      filter: drop-shadow(0 4px 10px rgba(0, 240, 255, 0.4));
     }
 
     .ring-text { position: absolute; text-align: center; pointer-events: none; }
-    #countDisplay { font-size: 42px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+    #countDisplay { font-size: 38px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
 
+    /* FIXED POSITION SYNC INDICATOR */
     #syncIndicator {
-      position: absolute; bottom: 18px; font-size: 12px; font-weight: 700;
-      color: #64748b; display: flex; align-items: center; gap: 8px;
+      position: absolute; bottom: 14px; font-size: 12px; font-weight: 700;
+      color: #64748b; display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; text-align: center;
     }
 
-    /* DYNAMIC SYNC DOT STYLING */
+    /* DEDICATED FIXED LIGHT DOT */
     .dot {
-      width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+      width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0;
       transition: background-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    /* IDLE STATE: ELECTRIC CYAN */
+    /* IDLE SYNC STATE: ELECTRIC CYAN */
     .dot.idle {
       background-color: #00F0FF;
-      box-shadow: 0 0 8px rgba(0, 240, 255, 0.8);
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.85);
       animation: none;
     }
 
-    /* SYNCING / QUEUED STATE: ANIMATED ORANGE */
+    /* BACKGROUND COMMUNICATING STATE: ANIMATED ORANGE */
     .dot.syncing {
       background-color: #FF9500;
-      box-shadow: 0 0 8px rgba(255, 149, 0, 0.8);
-      animation: pulseOrange 1.0s infinite ease-in-out;
+      box-shadow: 0 0 8px rgba(255, 149, 0, 0.85);
+      animation: pulseOrange 0.9s infinite ease-in-out;
+    }
+
+    /* ERROR / DISCONNECTED STATE: ANIMATED RED */
+    .dot.error {
+      background-color: #ef4444;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.85);
+      animation: pulseRed 0.9s infinite ease-in-out;
     }
 
     @keyframes pulseOrange {
@@ -84,13 +92,19 @@
       100% { transform: scale(0.9); opacity: 0.7; }
     }
 
-    .actionRow { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 480px; margin-bottom: 5px; }
-    .btnGroup { display: flex; gap: 12px; }
-    button {
-      flex: 1; padding: 18px; font-size: 16px; font-weight: 700; color: white;
-      border: none; border-radius: 20px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.08); transition: transform 0.1s ease;
+    @keyframes pulseRed {
+      0% { transform: scale(0.9); opacity: 0.7; }
+      50% { transform: scale(1.35); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.7; }
     }
-    #previewBtn { background: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; font-size: 17px; }
+
+    .actionRow { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 480px; margin-bottom: 0; }
+    .btnGroup { display: flex; gap: 10px; }
+    button {
+      flex: 1; padding: 15px; font-size: 15px; font-weight: 700; color: white;
+      border: none; border-radius: 18px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: transform 0.1s ease;
+    }
+    #previewBtn { background: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; font-size: 16px; }
     #endDayBtn { background: #00F0FF; color: #0f172a; font-weight: 800; }
     #resetBtn { background: #ef4444; }
     button:active { transform: scale(0.96); }
@@ -160,10 +174,10 @@
     }
 
     #configBox {
-      width: 100%; max-width: 480px; margin-bottom: 16px; padding: 16px;
+      width: 100%; max-width: 480px; margin-bottom: 12px; padding: 14px;
       background: #ffffff; border-radius: 18px; border: 1px solid #e2e8f0; font-size: 13px;
     }
-    #configBox input { width: 100%; padding: 10px; margin-top: 8px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; box-sizing: border-box; }
+    #configBox input { width: 100%; padding: 10px; margin-top: 6px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; box-sizing: border-box; }
   </style>
 </head>
 <body>
@@ -257,10 +271,14 @@
 
     applyLiquidLevel();
 
-    function updateSyncStatus(isSyncing, customMessage) {
-      if (isSyncing) {
+    // 3-STATE DYNAMIC STATUS UPDATER (IDLE = CYAN, SYNCING = ORANGE, ERROR = RED)
+    function updateSyncStatus(state, customMessage) {
+      if (state === 'error') {
+        syncDot.className = "dot error";
+        syncText.textContent = customMessage || "Connection Failed — Retrying...";
+      } else if (state === 'syncing') {
         syncDot.className = "dot syncing";
-        syncText.textContent = customMessage || ("Syncing (" + scanQueue.length + " remaining)...");
+        syncText.textContent = customMessage || ("Syncing (" + scanQueue.length + " left)...");
       } else {
         syncDot.className = "dot idle";
         syncText.textContent = "Live Sync Active";
@@ -274,9 +292,15 @@
           cachedTotal = result.totalGames;
           cachedScanned = result.scannedToday;
           applyLiquidLevel();
-          updateSyncStatus(false);
+          updateSyncStatus('idle');
+        } else if (result && !result.success) {
+          updateSyncStatus('error', result.message || "Server Communication Error");
         }
-      }).catch(function(err) {});
+      }).catch(function(err) {
+        if (scanQueue.length === 0) {
+          updateSyncStatus('error', "Connection Failed — Offline");
+        }
+      });
     }
 
     setInterval(refreshProgress, 2500);
@@ -311,19 +335,19 @@
       applyLiquidLevel();
 
       scanQueue.push(code);
-      updateSyncStatus(true);
+      updateSyncStatus('syncing');
       processNextQueueItem();
     }
 
     function processNextQueueItem() {
       if (isProcessingQueue || scanQueue.length === 0) {
-        if (scanQueue.length === 0) updateSyncStatus(false);
+        if (scanQueue.length === 0) updateSyncStatus('idle');
         return;
       }
 
       isProcessingQueue = true;
       var currentCode = scanQueue[0];
-      updateSyncStatus(true, "Syncing scan (" + scanQueue.length + " left)...");
+      updateSyncStatus('syncing', "Syncing scan (" + scanQueue.length + " left)...");
 
       callApi({ action: 'scan', code: currentCode })
         .then(function(result) {
@@ -333,18 +357,21 @@
           if (!result || !result.success) {
             cachedScanned = Math.max(0, cachedScanned - 1);
             applyLiquidLevel();
+            updateSyncStatus('error', result ? result.message : "Scan Failed — Retrying...");
+          } else {
+            updateSyncStatus('idle');
           }
 
           if (scanQueue.length > 0) {
             processNextQueueItem();
           } else {
-            updateSyncStatus(false);
             setTimeout(refreshProgress, 200);
           }
         })
         .catch(function(err) {
           isProcessingQueue = false;
-          setTimeout(processNextQueueItem, 500);
+          updateSyncStatus('error', "Connection Failed — Retrying Scan...");
+          setTimeout(processNextQueueItem, 1500);
         });
     }
 
@@ -414,27 +441,62 @@
       return new Promise(function(resolve, reject) {
         if (!API_URL) return reject('no url');
         var callbackName = 'jsonpCallback' + (jsonpCounter++);
+        
+        var timeoutId = setTimeout(function() {
+          delete window[callbackName];
+          if (script.parentNode) document.body.removeChild(script);
+          reject(new Error('Timeout'));
+        }, 8000);
+
         window[callbackName] = function(result) {
+          clearTimeout(timeoutId);
           delete window[callbackName];
           if (script.parentNode) document.body.removeChild(script);
           resolve(result);
         };
+
         params.callback = callbackName;
         var url = API_URL + '?' + new URLSearchParams(params).toString();
         var script = document.createElement('script');
         script.src = url;
+        script.onerror = function() {
+          clearTimeout(timeoutId);
+          delete window[callbackName];
+          if (script.parentNode) document.body.removeChild(script);
+          reject(new Error('Script load error'));
+        };
         document.body.appendChild(script);
       });
     }
 
     function handleEndDay(event) {
       if (!confirm('Close out the day? This archives everything.')) return;
-      callApi({ action: 'endday' }).then(function() { refreshProgress(); });
+      updateSyncStatus('syncing', "Closing out day...");
+      callApi({ action: 'endday' }).then(function(res) {
+        if (res && res.success) {
+          refreshProgress();
+          updateSyncStatus('idle');
+        } else {
+          updateSyncStatus('error', "End of Day Failed");
+        }
+      }).catch(function(err) {
+        updateSyncStatus('error', "Connection Failed — Try End of Day Again");
+      });
     }
 
     function handleReset(event) {
       if (!confirm('Reset back to last End of Day?')) return;
-      callApi({ action: 'reset' }).then(function() { refreshProgress(); });
+      updateSyncStatus('syncing', "Resetting day...");
+      callApi({ action: 'reset' }).then(function(res) {
+        if (res && res.success) {
+          refreshProgress();
+          updateSyncStatus('idle');
+        } else {
+          updateSyncStatus('error', "Reset Failed");
+        }
+      }).catch(function(err) {
+        updateSyncStatus('error', "Connection Failed — Try Reset Again");
+      });
     }
   </script>
 </body>
