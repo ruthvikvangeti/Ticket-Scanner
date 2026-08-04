@@ -32,6 +32,7 @@
       position: relative; display: flex; align-items: center; justify-content: center;
       background: #ffffff; border-radius: 28px; border: 1px solid #e2e8f0;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      will-change: transform;
     }
 
     .circle-container { position: relative; width: 210px; height: 210px; display: flex; align-items: center; justify-content: center; }
@@ -41,7 +42,7 @@
     .progress-ring {
       stroke: #00F0FF; stroke-dasharray: 534; stroke-dashoffset: 534;
       opacity: 0;
-      transition: stroke-dashoffset 0.12s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.2s ease, opacity 0.2s ease;
+      transition: stroke-dashoffset 0.08s linear, opacity 0.15s ease;
       filter: drop-shadow(0 4px 10px rgba(0, 240, 255, 0.4));
     }
 
@@ -60,14 +61,14 @@
     .btnGroup { display: flex; gap: 10px; }
     button {
       flex: 1; padding: 16px; font-size: 15px; font-weight: 700; color: white;
-      border: none; border-radius: 16px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: all 0.15s ease;
+      border: none; border-radius: 16px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: transform 0.1s ease;
     }
     #previewBtn { background: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; }
     #endDayBtn { background: #00F0FF; color: #0f172a; font-weight: 800; }
     #resetBtn { background: #ef4444; }
-    button:active { transform: scale(0.97); }
+    button:active { transform: scale(0.96); }
 
-    /* LIGHT THEME PREVIEW MODAL */
+    /* PREVIEW MODAL */
     #previewModal {
       display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px);
@@ -85,87 +86,50 @@
     .modal-body { padding: 20px; overflow-y: auto; flex: 1; background: #ffffff; color: #0f172a; }
     .modal-footer { padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; gap: 12px; background: #f8fafc; }
 
-    /* MULTI-COLUMN LIGHT THEME REPORT */
-    .report-grid-container {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    /* FULL EXCEL SHEET GRID LAYOUT */
+    table.excel-full-sheet {
+      width: 100%; border-collapse: collapse; font-size: 12px; font-family: Calibri, Segoe UI, sans-serif;
+      border: 2px solid #000000; background: #ffffff; color: #000000;
     }
-    @media (max-width: 768px) {
-      .report-grid-container { grid-template-columns: 1fr; }
+    table.excel-full-sheet th, table.excel-full-sheet td {
+      border: 1px solid #000000; padding: 4px 6px; text-align: center;
     }
-
-    table.excel-table {
-      width: 100%; border-collapse: collapse; font-size: 12px; font-family: -apple-system, sans-serif;
-      border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; margin-bottom: 12px;
+    table.excel-full-sheet th {
+      background: #f1f5f9; font-weight: bold; color: #000000; font-size: 11px; text-transform: uppercase;
+      border-bottom: 2px solid #000000;
     }
-    table.excel-table th, table.excel-table td {
-      border: 1px solid #cbd5e1; padding: 5px 8px; text-align: center;
+    
+    .excel-section-hdr td {
+      background: #e2e8f0; font-weight: bold; font-size: 12px; color: #000000; text-align: left !important;
+      padding-left: 10px; border-top: 2px solid #000000; border-bottom: 1px solid #000000;
     }
-    table.excel-table th {
-      background: #f1f5f9; font-weight: 700; color: #1e293b; text-transform: uppercase; font-size: 11px;
+    .excel-subtotal td {
+      background: #f8fafc; font-weight: bold; color: #000000; border-top: 1px dashed #000000; border-bottom: 1px solid #000000;
     }
-    .section-header-row td {
-      background: #e2e8f0; font-weight: 800; font-size: 13px; color: #0f172a; text-align: left !important;
-      padding-left: 10px;
-    }
-    .subtotal-row td {
-      background: #f8fafc; font-weight: 700; color: #334155; border-top: 2px solid #94a3b8;
-    }
-    .grand-total-banner {
-      grid-column: 1 / -1; background: #2563eb;
-      padding: 14px; border-radius: 12px; text-align: center; font-size: 15px; font-weight: 800; color: white;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); margin-bottom: 16px;
+    .excel-grandtotal td {
+      background: #dbeafe; font-weight: bold; font-size: 13px; color: #000000; border-top: 2px solid #000000; border-bottom: 3px double #000000;
     }
 
-    /* INK-SAVER GRAY BADGE FOR CHANGED BOOKS */
     .book-changed-badge {
       background-color: #666666 !important; color: #ffffff !important;
-      font-weight: 800; padding: 2px 6px; border-radius: 4px; display: inline-block;
+      font-weight: bold; padding: 2px 6px; border-radius: 4px; display: inline-block;
       -webkit-print-color-adjust: exact; print-color-adjust: exact;
     }
 
-    /* 🖨️ LANDSCAPE 1-PAGE ULTRA INK-SAVER PRINT CSS RULES */
-    @page {
-      size: landscape;
-      margin: 0.35in;
-    }
-
+    /* 🖨️ LANDSCAPE 1-PAGE ULTRA INK-SAVER PRINT RULES */
+    @page { size: landscape; margin: 0.35in; }
     @media print {
       body * { visibility: hidden; }
       #printArea, #printArea * { visibility: visible; }
-      #printArea {
-        position: absolute; left: 0; top: 0; width: 100%; padding: 0; background: #ffffff !important; color: #000000 !important;
-      }
+      #printArea { position: absolute; left: 0; top: 0; width: 100%; padding: 0; background: #ffffff !important; color: #000000 !important; }
       .no-print { display: none !important; }
-
-      .grand-total-banner {
-        background: #ffffff !important; color: #000000 !important; border: 2px solid #000000 !important;
-        box-shadow: none !important; font-size: 12px !important; padding: 5px !important; margin-bottom: 8px !important;
-      }
-
-      .report-grid-container {
-        display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px !important;
-      }
-
-      table.excel-table {
-        border: 1px solid #000000 !important; background: #ffffff !important; color: #000000 !important;
-        font-size: 9.5px !important; margin-bottom: 0 !important;
-      }
-      table.excel-table th, table.excel-table td {
-        border: 1px solid #000000 !important; padding: 2px 4px !important; background: #ffffff !important; color: #000000 !important;
-      }
-      table.excel-table th {
-        font-weight: 800 !important; border-bottom: 2px solid #000000 !important;
-      }
-      .section-header-row td {
-        font-weight: 800 !important; border-top: 2px solid #000000 !important; border-bottom: 1px solid #000000 !important;
-      }
-      .subtotal-row td {
-        font-weight: 700 !important; border-top: 1px dashed #000000 !important;
-      }
-      .book-changed-badge {
-        background-color: #666666 !important; color: #ffffff !important;
-        -webkit-print-color-adjust: exact; print-color-adjust: exact;
-      }
+      
+      table.excel-full-sheet { border: 2px solid #000000 !important; font-size: 9.5px !important; }
+      table.excel-full-sheet th, table.excel-full-sheet td { border: 1px solid #000000 !important; padding: 2px 4px !important; background: #ffffff !important; color: #000000 !important; }
+      .excel-section-hdr td { font-weight: bold !important; border-top: 2px solid #000000 !important; border-bottom: 1px solid #000000 !important; }
+      .excel-subtotal td { font-weight: bold !important; border-top: 1px dashed #000000 !important; }
+      .excel-grandtotal td { font-weight: bold !important; border-top: 2px solid #000000 !important; border-bottom: 3px double #000000 !important; }
+      .book-changed-badge { background-color: #666666 !important; color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
 
     #configBox {
@@ -193,7 +157,7 @@
         <div id="countDisplay">0 / 42</div>
       </div>
     </div>
-    <div id="syncIndicator"><span class="dot"></span> <span>Live Sync Active</span></div>
+    <div id="syncIndicator"><span class="dot"></span> <span id="syncText">Live Sync Active</span></div>
   </div>
 
   <div class="actionRow">
@@ -217,7 +181,7 @@
         </div>
       </div>
       <div class="modal-footer no-print">
-        <button onclick="window.print()" style="background:#16a34a; color:white; font-weight:bold;">🖨️ Print 1-Page Landscape</button>
+        <button onclick="window.print()" style="background:#16a34a; color:white; font-weight:bold;">🖨️ Print Report</button>
         <button onclick="closePreview()" style="background:#64748b; color:white;">Close</button>
       </div>
     </div>
@@ -239,9 +203,10 @@
 
     var ringFill = document.getElementById('ringFill');
     var countDisplay = document.getElementById('countDisplay');
+    var syncText = document.getElementById('syncText');
 
-    var cachedTotal = parseInt(localStorage.getItem('cachedTotal')) || 42;
-    var cachedScanned = parseInt(localStorage.getItem('cachedScanned')) || 0;
+    var cachedTotal = parseInt(localStorage.getItem('cachedTotal'), 10) || 42;
+    var cachedScanned = parseInt(localStorage.getItem('cachedScanned'), 10) || 0;
     const CIRCUMFERENCE = 534;
 
     var scanQueue = [];
@@ -275,7 +240,7 @@
       }).catch(function(err) {});
     }
 
-    setInterval(refreshProgress, 500);
+    setInterval(refreshProgress, 2000);
 
     var scanBuffer = '';
     var scanTimeout;
@@ -297,11 +262,11 @@
         scanBuffer += e.key;
       }
 
-      scanTimeout = setTimeout(function() { scanBuffer = ''; }, 100);
+      scanTimeout = setTimeout(function() { scanBuffer = ''; }, 80);
     });
 
     function enqueueScan(code) {
-      if (navigator.vibrate) navigator.vibrate(40);
+      if (navigator.vibrate) navigator.vibrate(30);
 
       cachedScanned = Math.min(cachedTotal, cachedScanned + 1);
       applyLiquidLevel();
@@ -311,10 +276,14 @@
     }
 
     function processNextQueueItem() {
-      if (isProcessingQueue || scanQueue.length === 0) return;
+      if (isProcessingQueue || scanQueue.length === 0) {
+        if (scanQueue.length === 0) syncText.textContent = "Live Sync Active";
+        return;
+      }
 
       isProcessingQueue = true;
       var currentCode = scanQueue[0];
+      syncText.textContent = "Syncing scan (" + scanQueue.length + " remaining)...";
 
       callApi({ action: 'scan', code: currentCode })
         .then(function(result) {
@@ -329,12 +298,13 @@
           if (scanQueue.length > 0) {
             processNextQueueItem();
           } else {
-            setTimeout(refreshProgress, 100);
+            syncText.textContent = "Live Sync Active";
+            setTimeout(refreshProgress, 200);
           }
         })
         .catch(function(err) {
           isProcessingQueue = false;
-          setTimeout(processNextQueueItem, 300);
+          setTimeout(processNextQueueItem, 500);
         });
     }
 
@@ -344,7 +314,7 @@
 
       callApi({ action: 'preview' }).then(function(res) {
         if (res && res.success && res.report) {
-          renderLandscapeReportHTML(res.report);
+          renderExcelStyleReportHTML(res.report);
         } else {
           document.getElementById('modalReportContent').innerHTML = '<div style="color:#ef4444; text-align:center;">Failed to load preview data.</div>';
         }
@@ -357,59 +327,47 @@
       document.getElementById('previewModal').style.display = 'none';
     }
 
-    function renderLandscapeReportHTML(rpt) {
-      var html = '<div class="grand-total-banner">' +
-        'DAILY ENTRY REPORT — ' + rpt.date + ' &nbsp;|&nbsp; ' +
-        'TOTAL TICKETS SOLD: ' + rpt.grandTotalTickets + ' &nbsp;|&nbsp; ' +
-        'TOTAL REVENUE: $' + rpt.grandTotalValue.toLocaleString('en-US') +
-      '</div>';
+    // RENDERS EXACT EXCEL SHEET STRUCTURE & GRIDLINES
+    function renderExcelStyleReportHTML(rpt) {
+      var html = '<div style="text-align:center; font-weight:bold; font-size:14px; margin-bottom:10px; font-family:Calibri, sans-serif;">DAILY ENTRY REPORT — ' + rpt.date + '</div>';
 
-      html += '<div class="report-grid-container">';
+      html += '<table class="excel-full-sheet"><thead><tr>' +
+        '<th>Game #</th><th>Book #</th><th>Start Ticket</th><th>End Ticket</th><th>Tickets Sold</th><th>Total Value ($)</th>' +
+      '</tr></thead><tbody>';
 
-      var leftSections = rpt.sections.slice(0, 4); // $1, $2, $3, $5
-      var rightSections = rpt.sections.slice(4);   // $10, $20, $30, $50
+      rpt.sections.forEach(function(sec) {
+        html += '<tr class="excel-section-hdr"><td colspan="6">$' + sec.price + ' GAMES</td></tr>';
 
-      html += '<div class="grid-col">';
-      leftSections.forEach(function(sec) { html += buildSectionTableHTML(sec); });
-      html += '</div>';
+        sec.rows.forEach(function(r) {
+          var bookDisplay = r.bookChanged
+            ? '<span class="book-changed-badge">' + r.book + '</span>'
+            : r.book;
 
-      html += '<div class="grid-col">';
-      rightSections.forEach(function(sec) { html += buildSectionTableHTML(sec); });
-      html += '</div>';
+          html += '<tr>' +
+            '<td><b>' + r.game + '</b></td>' +
+            '<td>' + bookDisplay + '</td>' +
+            '<td>' + r.start + '</td>' +
+            '<td>' + r.end + '</td>' +
+            '<td>' + r.sold + '</td>' +
+            '<td>$' + Math.round(r.value) + '</td>' +
+          '</tr>';
+        });
 
-      html += '</div>';
-
-      document.getElementById('modalReportContent').innerHTML = html;
-    }
-
-    function buildSectionTableHTML(sec) {
-      var tbl = '<table class="excel-table"><thead>' +
-        '<tr class="section-header-row"><td colspan="6">$' + sec.price + ' GAMES</td></tr>' +
-        '<tr><th>Game</th><th>Book</th><th>Start</th><th>End</th><th>Sold</th><th>Total ($)</th></tr>' +
-      '</thead><tbody>';
-
-      sec.rows.forEach(function(r) {
-        var bookDisplay = r.bookChanged
-          ? '<span class="book-changed-badge">' + r.book + '</span>'
-          : r.book;
-
-        tbl += '<tr>' +
-          '<td><b>' + r.game + '</b></td>' +
-          '<td>' + bookDisplay + '</td>' +
-          '<td>' + r.start + '</td>' +
-          '<td>' + r.end + '</td>' +
-          '<td>' + r.sold + '</td>' +
-          '<td>$' + Math.round(r.value) + '</td>' +
+        html += '<tr class="excel-subtotal">' +
+          '<td colspan="4" style="text-align:right;"><b>SUBTOTAL ($' + sec.price + ')</b></td>' +
+          '<td><b>' + sec.subtotalTickets + '</b></td>' +
+          '<td><b>$' + Math.round(sec.subtotalValue) + '</b></td>' +
         '</tr>';
       });
 
-      tbl += '<tr class="subtotal-row">' +
-        '<td colspan="4" style="text-align:right;"><b>SUBTOTAL ($' + sec.price + ')</b></td>' +
-        '<td><b>' + sec.subtotalTickets + '</b></td>' +
-        '<td><b>$' + Math.round(sec.subtotalValue) + '</b></td>' +
-      '</tr></tbody></table>';
+      html += '<tr class="excel-grandtotal">' +
+        '<td colspan="4" style="text-align:right;"><b>GRAND TOTAL</b></td>' +
+        '<td><b>' + rpt.grandTotalTickets + '</b></td>' +
+        '<td><b>$' + Math.round(rpt.grandTotalValue) + '</b></td>' +
+      '</tr>';
 
-      return tbl;
+      html += '</tbody></table>';
+      document.getElementById('modalReportContent').innerHTML = html;
     }
 
     var jsonpCounter = 0;
