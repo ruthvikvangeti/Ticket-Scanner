@@ -26,7 +26,6 @@
       padding-bottom: env(safe-area-inset-bottom, 20px);
     }
 
-    /* REPOSITIONED UPWARD TOWARDS TOP */
     #status {
       width: 100%; max-width: 480px; height: 280px;
       margin-top: 10px; margin-bottom: 24px;
@@ -40,9 +39,10 @@
     circle { fill: none; stroke-width: 14; stroke-linecap: round; }
     .bg-ring { stroke: #f1f5f9; }
     .progress-ring {
-      stroke: #2563eb; stroke-dasharray: 565; stroke-dashoffset: 565;
-      transition: stroke-dashoffset 0.12s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.2s ease;
-      filter: drop-shadow(0 4px 10px rgba(37, 99, 235, 0.25));
+      stroke: #00F0FF; stroke-dasharray: 534; stroke-dashoffset: 534;
+      opacity: 0;
+      transition: stroke-dashoffset 0.12s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.2s ease, opacity 0.2s ease;
+      filter: drop-shadow(0 4px 10px rgba(0, 240, 255, 0.4));
     }
 
     .ring-text { position: absolute; text-align: center; pointer-events: none; }
@@ -53,7 +53,7 @@
       color: #64748b; display: flex; align-items: center; gap: 6px;
     }
 
-    .dot { width: 8px; height: 8px; background-color: #2563eb; border-radius: 50%; display: inline-block; animation: pulse 1.2s infinite; }
+    .dot { width: 8px; height: 8px; background-color: #00F0FF; border-radius: 50%; display: inline-block; animation: pulse 1.2s infinite; }
     @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.7; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.7; } }
 
     .actionRow { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 480px; }
@@ -63,7 +63,7 @@
       border: none; border-radius: 16px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: all 0.15s ease;
     }
     #previewBtn { background: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; }
-    #endDayBtn { background: #0284c7; color: #ffffff; font-weight: 800; }
+    #endDayBtn { background: #00F0FF; color: #0f172a; font-weight: 800; }
     #resetBtn { background: #ef4444; }
     button:active { transform: scale(0.97); }
 
@@ -251,7 +251,8 @@
       var f = Math.max(0, Math.min(1, fraction));
       var offset = CIRCUMFERENCE - (f * CIRCUMFERENCE);
       ringFill.style.strokeDashoffset = offset;
-      ringFill.style.stroke = f >= 1 ? '#16a34a' : '#2563eb';
+      ringFill.style.opacity = f <= 0 ? '0' : '1';
+      ringFill.style.stroke = f >= 1 ? '#2563eb' : '#00F0FF';
     }
 
     function applyLiquidLevel() {
@@ -406,7 +407,7 @@
         '<td colspan="4" style="text-align:right;"><b>SUBTOTAL ($' + sec.price + ')</b></td>' +
         '<td><b>' + sec.subtotalTickets + '</b></td>' +
         '<td><b>$' + Math.round(sec.subtotalValue) + '</b></td>' +
-      '</tr></tbody>mtable>';
+      '</tr></tbody></table>';
 
       return tbl;
     }
