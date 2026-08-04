@@ -1,10 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Scratch-Off Scanner</title>
+  
+  <!-- Preconnect to Google Scripts for 100-300ms faster scan responses -->
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="dns-prefetch" href="https://script.google.com">
+
   <link rel="apple-touch-icon" href="icon.png">
   <link rel="icon" href="icon.png">
+
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body {
@@ -20,6 +27,7 @@
       position: relative; display: flex; align-items: center; justify-content: center;
       background: #ffffff; border-radius: 28px; border: 1px solid #e2e8f0;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      will-change: transform;
     }
 
     .circle-container { position: relative; width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; }
@@ -28,7 +36,7 @@
     .bg-ring { stroke: #f1f5f9; }
     .progress-ring {
       stroke: #00F0FF; stroke-dasharray: 565; stroke-dashoffset: 565;
-      transition: stroke-dashoffset 0.15s ease-in-out, stroke 0.2s ease;
+      transition: stroke-dashoffset 0.12s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.2s ease;
       filter: drop-shadow(0 4px 8px rgba(0, 240, 255, 0.35));
     }
 
@@ -101,10 +109,10 @@
 
     var ringFill = document.getElementById('ringFill');
     var countDisplay = document.getElementById('countDisplay');
-    var syncDot = document.getElementById('syncDot');
 
-    var cachedTotal = 42;
-    var cachedScanned = 0;
+    // Instant boot load from device cache (0ms)
+    var cachedTotal = parseInt(localStorage.getItem('cachedTotal')) || 42;
+    var cachedScanned = parseInt(localStorage.getItem('cachedScanned')) || 0;
     const CIRCUMFERENCE = 565;
 
     var scanQueue = [];
@@ -121,7 +129,14 @@
       countDisplay.textContent = cachedScanned + ' / ' + cachedTotal;
       var pct = cachedTotal > 0 ? cachedScanned / cachedTotal : 0;
       setCircleProgress(pct);
+
+      // Save state locally
+      localStorage.setItem('cachedTotal', cachedTotal);
+      localStorage.setItem('cachedScanned', cachedScanned);
     }
+
+    // Render immediately on boot (0ms)
+    applyLiquidLevel();
 
     function refreshProgress() {
       if (!API_URL || isProcessingQueue || scanQueue.length > 0) return;
@@ -161,6 +176,9 @@
     });
 
     function enqueueScan(code) {
+      // Haptic Vibration Feedback
+      if (navigator.vibrate) navigator.vibrate(40);
+
       cachedScanned = Math.min(cachedTotal, cachedScanned + 1);
       applyLiquidLevel();
 
