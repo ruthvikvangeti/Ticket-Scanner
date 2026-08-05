@@ -4,8 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Scratch-Off Scanner</title>
-  
-  <!-- iOS Web App Configuration -->
+
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Ticket Scanner">
@@ -47,7 +46,7 @@
     .progress-ring {
       stroke: #00F0FF; stroke-dasharray: 660; stroke-dashoffset: 660;
       opacity: 0;
-      transition: stroke-dashoffset 0.08s linear, opacity 0.15s ease;
+      transition: stroke-dashoffset 0.15s ease, opacity 0.15s ease;
       filter: drop-shadow(0 4px 10px rgba(0, 240, 255, 0.4));
     }
 
@@ -95,16 +94,12 @@
       100% { transform: scale(0.9); opacity: 0.7; }
     }
 
-    /* SCANNER INPUT BOX FOR MOBILE SAFARI HID CAPTURE */
-    .scanner-field-container {
-      width: 100%; margin-bottom: 12px;
-    }
+    .scanner-field-container { width: 100%; margin-bottom: 12px; }
     #scannerInput {
       width: 100%; padding: 10px 14px; font-size: 14px; font-weight: 600;
       border-radius: 12px; border: 2px solid #00F0FF; background: #f0fdf4;
       color: #0f172a; text-align: center; outline: none;
       box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
-      transition: border-color 0.2s ease, background-color 0.2s ease;
     }
     #scannerInput:focus {
       border-color: #2563eb; background: #ffffff;
@@ -140,7 +135,6 @@
     .modal-body { padding: 20px; overflow-y: auto; flex: 1; background: #ffffff; color: #0f172a; }
     .modal-footer { padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; gap: 12px; background: #f8fafc; }
 
-    /* EXCEL SHEET GRID LAYOUT */
     table.excel-full-sheet {
       width: 100%; border-collapse: collapse; font-size: 12px; font-family: Calibri, Segoe UI, sans-serif;
       border: 2px solid #000000; background: #ffffff; color: #000000;
@@ -152,7 +146,6 @@
       background: #f1f5f9; font-weight: bold; color: #000000; font-size: 11px; text-transform: uppercase;
       border-bottom: 2px solid #000000;
     }
-    
     .excel-section-hdr td {
       background: #e2e8f0; font-weight: bold; font-size: 12px; color: #000000; text-align: left !important;
       padding-left: 10px; border-top: 2px solid #000000; border-bottom: 1px solid #000000;
@@ -180,7 +173,6 @@
 
     <div id="syncIndicator"><span class="dot idle" id="syncDot"></span> <span id="syncText">Live Sync Active</span></div>
 
-    <!-- EXPLICIT MOBILE FOCUS TARGET FOR BLUETOOTH SCANNERS -->
     <div class="scanner-field-container">
       <input type="text" id="scannerInput" placeholder="Ready to Scan" autocomplete="off" inputmode="none">
     </div>
@@ -194,7 +186,6 @@
     </div>
   </div>
 
-  <!-- PREVIEW MODAL -->
   <div id="previewModal">
     <div class="modal-card">
       <div class="modal-header">
@@ -216,7 +207,6 @@
   <script>
     var DIRECT_DEPLOY_URL = 'https://script.google.com/macros/s/AKfycbzjXDoJDyja6w1HcOGnj7ZfWAjbMPagbajD_E1lqVH0V5mTwOse3Xr13S3U1uEuFb6l/exec';
     
-    localStorage.setItem('appsScriptUrl', DIRECT_DEPLOY_URL);
     var API_URL = DIRECT_DEPLOY_URL;
 
     var ringFill = document.getElementById('ringFill');
@@ -225,24 +215,20 @@
     var syncDot = document.getElementById('syncDot');
     var scannerInput = document.getElementById('scannerInput');
 
-    var cachedTotal = parseInt(localStorage.getItem('cachedTotal'), 10) || 42;
-    var cachedScanned = parseInt(localStorage.getItem('cachedScanned'), 10) || 0;
+    var currentScanned = 0;
+    var currentTotal = 42;
     const CIRCUMFERENCE = 660;
 
     var scanQueue = [];
     var isProcessingQueue = false;
 
-    // AUTO FOCUS SCANNED FIELD ON MOBILE LOAD & SCREEN TAP
     function keepFocusOnScanner() {
       if (document.activeElement !== scannerInput) {
         scannerInput.focus();
       }
     }
 
-    window.addEventListener('DOMContentLoaded', function() {
-      keepFocusOnScanner();
-    });
-
+    window.addEventListener('DOMContentLoaded', keepFocusOnScanner);
     document.addEventListener('click', function(e) {
       if (e.target.tagName !== 'BUTTON' && !e.target.closest('#previewModal')) {
         keepFocusOnScanner();
@@ -257,19 +243,17 @@
       ringFill.style.stroke = f >= 1 ? '#2563eb' : '#00F0FF';
     }
 
-    function applyLiquidLevel() {
-      countDisplay.textContent = cachedScanned + ' / ' + cachedTotal;
-      setCircleProgress(cachedTotal > 0 ? cachedScanned / cachedTotal : 0);
-      localStorage.setItem('cachedTotal', cachedTotal);
-      localStorage.setItem('cachedScanned', cachedScanned);
+    function renderDisplay(scanned, total) {
+      currentScanned = scanned;
+      currentTotal = total > 0 ? total : 42;
+      countDisplay.textContent = currentScanned + ' / ' + currentTotal;
+      setCircleProgress(currentTotal > 0 ? currentScanned / currentTotal : 0);
     }
-
-    applyLiquidLevel();
 
     function updateSyncStatus(state, customMessage) {
       if (state === 'error') {
         syncDot.className = "dot error";
-        syncText.textContent = customMessage || "Backend Choked — Retrying...";
+        syncText.textContent = customMessage || "Backend Busy — Retrying...";
       } else if (state === 'syncing') {
         syncDot.className = "dot syncing";
         syncText.textContent = customMessage || ("Channelizing (" + scanQueue.length + " queued)...");
@@ -279,34 +263,30 @@
       }
     }
 
-    function sendWarmUpPing() {
-      if (!API_URL || isProcessingQueue || scanQueue.length > 0) return;
+    // PULLS SINGLE SOURCE OF TRUTH FROM GOOGLE SHEETS
+    function syncWithBackend() {
+      if (!API_URL || isProcessingQueue) return;
       callApi({ action: 'progress' }).then(function(result) {
         if (result && result.success) {
-          if (result.totalGames > 0) cachedTotal = result.totalGames;
-          cachedScanned = result.scannedToday || 0;
-          applyLiquidLevel();
-          updateSyncStatus('idle');
+          renderDisplay(result.scannedToday || 0, result.totalGames || 42);
+          if (scanQueue.length === 0) updateSyncStatus('idle');
         }
       }).catch(function(err) {});
     }
 
-    sendWarmUpPing();
-    setInterval(sendWarmUpPing, 3000);
+    // Immediate sync on page load + polling every 2 seconds
+    syncWithBackend();
+    setInterval(syncWithBackend, 2000);
 
-    // HANDLES HARDWARE/BLUETOOTH SCANNER ENTER KEY
     scannerInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         e.preventDefault();
         var codeToSubmit = scannerInput.value.trim();
         scannerInput.value = '';
-        if (codeToSubmit.length >= 10) {
-          enqueueScan(codeToSubmit);
-        }
+        if (codeToSubmit.length >= 10) enqueueScan(codeToSubmit);
       }
     });
 
-    // HANDLES FAST CONTINUOUS TYPING FROM MOBILE SCANNERS
     var inputTimeout;
     scannerInput.addEventListener('input', function() {
       clearTimeout(inputTimeout);
@@ -325,9 +305,6 @@
 
       if (navigator.vibrate) navigator.vibrate(30);
 
-      cachedScanned = Math.min(cachedTotal, cachedScanned + 1);
-      applyLiquidLevel();
-
       scanQueue.push(cleanCode);
       updateSyncStatus('syncing');
       processNextQueueItem();
@@ -345,26 +322,24 @@
 
       callApi({ action: 'scan', code: currentCode })
         .then(function(result) {
-          if (result && result.success) {
-            scanQueue.shift();
-            isProcessingQueue = false;
-            updateSyncStatus('idle');
+          scanQueue.shift();
+          isProcessingQueue = false;
 
-            if (scanQueue.length > 0) {
-              processNextQueueItem();
-            } else {
-              setTimeout(sendWarmUpPing, 150);
-            }
+          if (result && result.success) {
+            updateSyncStatus('idle');
+            syncWithBackend(); // Force immediate re-sync across all open clients
+            if (scanQueue.length > 0) processNextQueueItem();
           } else {
-            isProcessingQueue = false;
-            updateSyncStatus('error', "Re-sending Scan...");
-            setTimeout(processNextQueueItem, 1000);
+            var msg = (result && result.message) ? result.message : "Game Not Found";
+            updateSyncStatus('error', msg);
+            setTimeout(function() { updateSyncStatus('idle'); }, 3000);
+            if (scanQueue.length > 0) processNextQueueItem();
           }
         })
         .catch(function(err) {
           isProcessingQueue = false;
-          updateSyncStatus('error', "Retrying Scan...");
-          setTimeout(processNextQueueItem, 1200);
+          updateSyncStatus('error', "Network Error — Retrying...");
+          setTimeout(processNextQueueItem, 1500);
         });
     }
 
@@ -466,18 +441,14 @@
 
     function handleEndDay(event) {
       if (!confirm('Close out the day? This archives all current progress.')) return;
-      
       scanQueue = [];
-      cachedScanned = 0;
-      applyLiquidLevel();
       updateSyncStatus('syncing', "Closing out day...");
 
       callApi({ action: 'endday' }).then(function(res) {
         if (res && res.success) {
-          cachedScanned = 0;
-          applyLiquidLevel();
+          renderDisplay(0, currentTotal);
           updateSyncStatus('idle');
-          sendWarmUpPing();
+          syncWithBackend();
         } else {
           updateSyncStatus('error', "End of Day Failed");
         }
@@ -488,18 +459,14 @@
 
     function handleReset(event) {
       if (!confirm('Reset back to start of day?')) return;
-      
       scanQueue = [];
-      cachedScanned = 0;
-      applyLiquidLevel();
       updateSyncStatus('syncing', "Resetting day...");
 
       callApi({ action: 'reset' }).then(function(res) {
         if (res && res.success) {
-          cachedScanned = 0;
-          applyLiquidLevel();
+          renderDisplay(0, currentTotal);
           updateSyncStatus('idle');
-          sendWarmUpPing();
+          syncWithBackend();
         } else {
           updateSyncStatus('error', "Reset Failed");
         }
