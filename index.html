@@ -5,14 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Scratch-Off Scanner</title>
   
-  <!-- iOS Full-Screen Web App Meta Tags -->
+  <!-- iOS Web App Configuration -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Ticket Scanner">
   <meta name="mobile-web-app-capable" content="yes">
   
   <link rel="preconnect" href="https://script.google.com" crossorigin>
-  <link rel="dns-prefetch" href="https://script.google.com">
 
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -125,7 +124,7 @@
     .modal-body { padding: 20px; overflow-y: auto; flex: 1; background: #ffffff; color: #0f172a; }
     .modal-footer { padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; gap: 12px; background: #f8fafc; }
 
-    /* FULL EXCEL SHEET GRID LAYOUT */
+    /* EXCEL SHEET GRID LAYOUT */
     table.excel-full-sheet {
       width: 100%; border-collapse: collapse; font-size: 12px; font-family: Calibri, Segoe UI, sans-serif;
       border: 2px solid #000000; background: #ffffff; color: #000000;
@@ -149,30 +148,10 @@
       background: #dbeafe; font-weight: bold; font-size: 13px; color: #000000; border-top: 2px solid #000000; border-bottom: 3px double #000000;
     }
 
-    .book-changed-badge {
-      background-color: #666666 !important; color: #ffffff !important;
-      font-weight: bold; padding: 2px 6px; border-radius: 4px; display: inline-block;
-      -webkit-print-color-adjust: exact; print-color-adjust: exact;
-    }
-
-    @page { size: landscape; margin: 0.35in; }
-    @media print {
-      body * { visibility: hidden; }
-      #printArea, #printArea * { visibility: visible; }
-      #printArea { position: absolute; left: 0; top: 0; width: 100%; padding: 0; background: #ffffff !important; color: #000000 !important; }
-      .no-print { display: none !important; }
-      
-      table.excel-full-sheet { border: 2px solid #000000 !important; font-size: 9.5px !important; }
-      table.excel-full-sheet th, table.excel-full-sheet td { border: 1px solid #000000 !important; padding: 2px 4px !important; background: #ffffff !important; color: #000000 !important; }
-      .excel-section-hdr td { font-weight: bold !important; border-top: 2px solid #000000 !important; border-bottom: 1px solid #000000 !important; }
-      .excel-subtotal td { font-weight: bold !important; border-top: 1px dashed #000000 !important; }
-      .excel-grandtotal td { font-weight: bold !important; border-top: 2px solid #000000 !important; border-bottom: 3px double #000000 !important; }
-      .book-changed-badge { background-color: #666666 !important; color: #ffffff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    }
-
     #configBox {
       width: 100%; max-width: 420px; margin-bottom: 8px; padding: 10px;
       background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; font-size: 12px;
+      display: none;
     }
     #configBox input { width: 100%; padding: 8px; margin-top: 4px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; box-sizing: border-box; }
   </style>
@@ -181,8 +160,8 @@
 
   <div id="configBox">
     <div><b>Apps Script URL:</b></div>
-    <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
-    <button onclick="saveApiUrl()" style="margin-top:8px; background:#2563eb; color:#fff; border:none; padding:8px; width:100%; border-radius:8px; font-weight:bold;">Save URL</button>
+    <input type="text" id="apiUrlInput">
+    <button onclick="saveApiUrl()" style="margin-top:8px; background:#2563eb; color:#fff; border:none; padding:8px; width:100%; border-radius:8px; font-weight:bold;">Save & Sync</button>
   </div>
 
   <div id="mainCard">
@@ -219,7 +198,7 @@
           <div style="text-align:center; padding:30px; color:#64748b;">Fetching live report data...</div>
         </div>
       </div>
-      <div class="modal-footer no-print">
+      <div class="modal-footer">
         <button onclick="window.print()" style="background:#16a34a; color:white; font-weight:bold;">🖨️ Print Report</button>
         <button onclick="closePreview()" style="background:#64748b; color:white;">Close</button>
       </div>
@@ -227,23 +206,12 @@
   </div>
 
   <script>
-    // DIRECT HARDCODED URL LINKAGE
-    var DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbxmJant5MsTw4ZVB_QDec_jRUf5KiWVfC-RVdTijW38gS6ZIhDREDXA8ceR7XCH0slJ/exec';
-    var API_URL = localStorage.getItem('appsScriptUrl') || DEFAULT_URL;
+    var DIRECT_DEPLOY_URL = 'https://script.google.com/macros/s/AKfycbzjXDoJDyja6w1HcOGnj7ZfWAjbMPagbajD_E1lqVH0V5mTwOse3Xr13S3U1uEuFb6l/exec';
     
-    // Save default URL into local storage automatically
-    localStorage.setItem('appsScriptUrl', API_URL);
+    // Always bind direct deployment URL
+    localStorage.setItem('appsScriptUrl', DIRECT_DEPLOY_URL);
+    var API_URL = DIRECT_DEPLOY_URL;
     document.getElementById('apiUrlInput').value = API_URL;
-    if (API_URL) document.getElementById('configBox').style.display = 'none';
-
-    function saveApiUrl() {
-      var url = document.getElementById('apiUrlInput').value.trim();
-      if (!url) return;
-      localStorage.setItem('appsScriptUrl', url);
-      API_URL = url;
-      document.getElementById('configBox').style.display = 'none';
-      sendWarmUpPing();
-    }
 
     var ringFill = document.getElementById('ringFill');
     var countDisplay = document.getElementById('countDisplay');
@@ -268,7 +236,7 @@
     function applyLiquidLevel() {
       countDisplay.textContent = cachedScanned + ' / ' + cachedTotal;
       setCircleProgress(cachedTotal > 0 ? cachedScanned / cachedTotal : 0);
-      localStorage.setItem('cachedTotal', cachedScanned > 0 ? cachedTotal : 42);
+      localStorage.setItem('cachedTotal', cachedTotal);
       localStorage.setItem('cachedScanned', cachedScanned);
     }
 
@@ -277,7 +245,7 @@
     function updateSyncStatus(state, customMessage) {
       if (state === 'error') {
         syncDot.className = "dot error";
-        syncText.textContent = customMessage || "Backend Choked — Auto Retrying...";
+        syncText.textContent = customMessage || "Backend Choked — Retrying...";
       } else if (state === 'syncing') {
         syncDot.className = "dot syncing";
         syncText.textContent = customMessage || ("Channelizing (" + scanQueue.length + " queued)...");
@@ -288,11 +256,11 @@
     }
 
     function sendWarmUpPing() {
-      if (!API_URL) return;
+      if (!API_URL || isProcessingQueue || scanQueue.length > 0) return;
       callApi({ action: 'progress' }).then(function(result) {
-        if (result && result.totalGames > 0 && scanQueue.length === 0) {
-          cachedTotal = result.totalGames;
-          cachedScanned = result.scannedToday;
+        if (result && result.success) {
+          if (result.totalGames > 0) cachedTotal = result.totalGames;
+          cachedScanned = result.scannedToday || 0;
           applyLiquidLevel();
           updateSyncStatus('idle');
         }
@@ -300,12 +268,11 @@
     }
 
     sendWarmUpPing();
-    setInterval(sendWarmUpPing, 3500);
+    setInterval(sendWarmUpPing, 3000);
 
     var scanBuffer = '';
     var scanTimeout;
 
-    // HIGH-SPEED 16MS OPTIMIZED BARCODE RECEIVER
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -322,7 +289,6 @@
         scanBuffer += e.key;
       }
 
-      // 45ms timeout perfectly tuned for ultra-fast 16ms scanner bursts
       clearTimeout(scanTimeout);
       scanTimeout = setTimeout(function() {
         if (scanBuffer.trim().length >= 10) {
@@ -334,7 +300,6 @@
 
     function enqueueScan(code) {
       var cleanCode = String(code).replace(/\D/g, '').trim();
-      
       if (cleanCode.length < 10) return;
 
       if (navigator.vibrate) navigator.vibrate(30);
@@ -371,13 +336,13 @@
             }
           } else {
             isProcessingQueue = false;
-            updateSyncStatus('error', "Backend Busy — Re-sending Scan...");
+            updateSyncStatus('error', "Re-sending Scan...");
             setTimeout(processNextQueueItem, 1000);
           }
         })
         .catch(function(err) {
           isProcessingQueue = false;
-          updateSyncStatus('error', "Waking Server — Retrying Scan...");
+          updateSyncStatus('error', "Retrying Scan...");
           setTimeout(processNextQueueItem, 1200);
         });
     }
@@ -412,13 +377,9 @@
         html += '<tr class="excel-section-hdr"><td colspan="6">$' + sec.price + ' GAMES</td></tr>';
 
         sec.rows.forEach(function(r) {
-          var bookDisplay = r.bookChanged
-            ? '<span class="book-changed-badge">' + r.book + '</span>'
-            : r.book;
-
           html += '<tr>' +
             '<td><b>' + r.game + '</b></td>' +
-            '<td>' + bookDisplay + '</td>' +
+            '<td>' + r.book + '</td>' +
             '<td>' + r.start + '</td>' +
             '<td>' + r.end + '</td>' +
             '<td>' + r.sold + '</td>' +
@@ -447,62 +408,81 @@
     function callApi(params) {
       return new Promise(function(resolve, reject) {
         if (!API_URL) return reject('no url');
-        var callbackName = 'jsonpCallback' + (jsonpCounter++);
+        var callbackName = 'jsonpCallback_' + (jsonpCounter++) + '_' + Date.now();
         
         var timeoutId = setTimeout(function() {
-          delete window[callbackName];
-          if (script.parentNode) document.body.removeChild(script);
+          cleanup();
           reject(new Error('Timeout'));
-        }, 9000);
+        }, 8000);
 
-        window[callbackName] = function(result) {
+        function cleanup() {
           clearTimeout(timeoutId);
           delete window[callbackName];
-          if (script.parentNode) document.body.removeChild(script);
+          var el = document.getElementById(callbackName);
+          if (el && el.parentNode) el.parentNode.removeChild(el);
+        }
+
+        window[callbackName] = function(result) {
+          cleanup();
           resolve(result);
         };
 
         params.callback = callbackName;
+        params._t = Date.now(); // ANTI-CACHE STAMP FOR SAFARI
+        
         var url = API_URL + '?' + new URLSearchParams(params).toString();
         var script = document.createElement('script');
+        script.id = callbackName;
         script.src = url;
         script.onerror = function() {
-          clearTimeout(timeoutId);
-          delete window[callbackName];
-          if (script.parentNode) document.body.removeChild(script);
-          reject(new Error('Script load error'));
+          cleanup();
+          reject(new Error('Script error'));
         };
         document.body.appendChild(script);
       });
     }
 
     function handleEndDay(event) {
-      if (!confirm('Close out the day? This archives everything.')) return;
+      if (!confirm('Close out the day? This archives all current progress.')) return;
+      
+      scanQueue = [];
+      cachedScanned = 0;
+      applyLiquidLevel();
       updateSyncStatus('syncing', "Closing out day...");
+
       callApi({ action: 'endday' }).then(function(res) {
         if (res && res.success) {
-          sendWarmUpPing();
+          cachedScanned = 0;
+          applyLiquidLevel();
           updateSyncStatus('idle');
+          sendWarmUpPing();
         } else {
           updateSyncStatus('error', "End of Day Failed");
         }
       }).catch(function(err) {
-        updateSyncStatus('error', "Connection Failed — Try End of Day Again");
+        updateSyncStatus('error', "Connection Error — Retry End Day");
       });
     }
 
     function handleReset(event) {
-      if (!confirm('Reset back to last End of Day?')) return;
+      if (!confirm('Reset back to start of day?')) return;
+      
+      scanQueue = [];
+      cachedScanned = 0;
+      applyLiquidLevel();
       updateSyncStatus('syncing', "Resetting day...");
+
       callApi({ action: 'reset' }).then(function(res) {
         if (res && res.success) {
-          sendWarmUpPing();
+          cachedScanned = 0;
+          applyLiquidLevel();
           updateSyncStatus('idle');
+          sendWarmUpPing();
         } else {
           updateSyncStatus('error', "Reset Failed");
         }
       }).catch(function(err) {
-        updateSyncStatus('error', "Connection Failed — Try Reset Again");
+        updateSyncStatus('error', "Connection Error — Retry Reset");
       });
     }
   </script>
