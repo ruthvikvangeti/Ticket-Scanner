@@ -37,7 +37,6 @@
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
     }
 
-    /* COMPACT PROGRESS CIRCLE */
     .circle-container {
       position: relative; width: 190px; height: 190px;
       display: flex; align-items: center; justify-content: center;
@@ -56,7 +55,6 @@
     .ring-text { position: absolute; text-align: center; pointer-events: none; }
     #countDisplay { font-size: 36px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
 
-    /* SYNC STATUS DIRECTLY BELOW RING */
     #syncIndicator {
       margin-top: 4px; margin-bottom: 12px;
       font-size: 12px; font-weight: 700; color: #64748b;
@@ -98,7 +96,6 @@
       100% { transform: scale(0.9); opacity: 0.7; }
     }
 
-    /* BUTTONS TIGHTLY ATTACHED DIRECTLY BELOW STATUS LIGHT */
     .actionRow { display: flex; flex-direction: column; gap: 8px; width: 100%; }
     .btnGroup { display: flex; gap: 8px; }
     button {
@@ -230,7 +227,12 @@
   </div>
 
   <script>
-    var API_URL = localStorage.getItem('appsScriptUrl') || '';
+    // DIRECT HARDCODED URL LINKAGE
+    var DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbxmJant5MsTw4ZVB_QDec_jRUf5KiWVfC-RVdTijW38gS6ZIhDREDXA8ceR7XCH0slJ/exec';
+    var API_URL = localStorage.getItem('appsScriptUrl') || DEFAULT_URL;
+    
+    // Save default URL into local storage automatically
+    localStorage.setItem('appsScriptUrl', API_URL);
     document.getElementById('apiUrlInput').value = API_URL;
     if (API_URL) document.getElementById('configBox').style.display = 'none';
 
@@ -240,7 +242,7 @@
       localStorage.setItem('appsScriptUrl', url);
       API_URL = url;
       document.getElementById('configBox').style.display = 'none';
-      refreshProgress();
+      sendWarmUpPing();
     }
 
     var ringFill = document.getElementById('ringFill');
