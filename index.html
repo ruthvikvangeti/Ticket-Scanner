@@ -21,26 +21,27 @@
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
-      padding: 12px 16px 12px 16px;
+      padding: 10px 14px 16px 14px;
       background: #f8fafc; color: #0f172a;
       display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
       min-height: 100vh;
-      padding-top: max(12px, env(safe-area-inset-top));
-      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      padding-top: max(10px, env(safe-area-inset-top));
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
     }
 
     #mainCard {
-      width: 100%; max-width: 440px; height: 100%; max-height: calc(100vh - 24px);
-      display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-      background: #ffffff; border-radius: 28px; border: 1px solid #e2e8f0;
-      padding: 16px 16px 18px 16px;
+      width: 100%; max-width: 420px;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      background: #ffffff; border-radius: 24px; border: 1px solid #e2e8f0;
+      padding: 14px 14px 16px 14px;
       box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
     }
 
+    /* COMPACT PROGRESS CIRCLE */
     .circle-container {
-      position: relative; width: 230px; height: 230px;
+      position: relative; width: 190px; height: 190px;
       display: flex; align-items: center; justify-content: center;
-      margin-top: 4px;
+      margin-top: 2px; margin-bottom: 2px;
     }
     svg { width: 100%; height: 100%; transform: rotate(-90deg); }
     circle { fill: none; stroke-width: 16; stroke-linecap: round; }
@@ -53,10 +54,11 @@
     }
 
     .ring-text { position: absolute; text-align: center; pointer-events: none; }
-    #countDisplay { font-size: 40px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+    #countDisplay { font-size: 36px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
 
+    /* SYNC STATUS DIRECTLY BELOW RING */
     #syncIndicator {
-      margin-top: 6px; margin-bottom: 12px;
+      margin-top: 4px; margin-bottom: 12px;
       font-size: 12px; font-weight: 700; color: #64748b;
       display: flex; align-items: center; justify-content: center; gap: 8px;
     }
@@ -96,13 +98,14 @@
       100% { transform: scale(0.9); opacity: 0.7; }
     }
 
-    .actionRow { display: flex; flex-direction: column; gap: 10px; width: 100%; }
-    .btnGroup { display: flex; gap: 10px; }
+    /* BUTTONS TIGHTLY ATTACHED DIRECTLY BELOW STATUS LIGHT */
+    .actionRow { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+    .btnGroup { display: flex; gap: 8px; }
     button {
-      flex: 1; padding: 14px; font-size: 15px; font-weight: 700; color: white;
-      border: none; border-radius: 16px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.06); transition: transform 0.1s ease;
+      flex: 1; padding: 12px; font-size: 14px; font-weight: 700; color: white;
+      border: none; border-radius: 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: transform 0.1s ease;
     }
-    #previewBtn { background: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; font-size: 16px; }
+    #previewBtn { background: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; font-size: 15px; padding: 13px; }
     #endDayBtn { background: #00F0FF; color: #0f172a; font-weight: 800; }
     #resetBtn { background: #ef4444; }
     button:active { transform: scale(0.96); }
@@ -171,10 +174,10 @@
     }
 
     #configBox {
-      width: 100%; max-width: 440px; margin-bottom: 10px; padding: 12px;
-      background: #ffffff; border-radius: 18px; border: 1px solid #e2e8f0; font-size: 13px;
+      width: 100%; max-width: 420px; margin-bottom: 8px; padding: 10px;
+      background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; font-size: 12px;
     }
-    #configBox input { width: 100%; padding: 10px; margin-top: 6px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; box-sizing: border-box; }
+    #configBox input { width: 100%; padding: 8px; margin-top: 4px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; box-sizing: border-box; }
   </style>
 </head>
 <body>
@@ -182,7 +185,7 @@
   <div id="configBox">
     <div><b>Apps Script URL:</b></div>
     <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
-    <button onclick="saveApiUrl()" style="margin-top:10px; background:#2563eb; color:#fff; border:none; padding:10px; width:100%; border-radius:8px; font-weight:bold;">Save URL</button>
+    <button onclick="saveApiUrl()" style="margin-top:8px; background:#2563eb; color:#fff; border:none; padding:8px; width:100%; border-radius:8px; font-weight:bold;">Save URL</button>
   </div>
 
   <div id="mainCard">
@@ -294,16 +297,14 @@
       }).catch(function(err) {});
     }
 
-    // SILENT INSTANT WARM-UP PING ON LOAD
     sendWarmUpPing();
     setInterval(sendWarmUpPing, 3500);
 
     var scanBuffer = '';
     var scanTimeout;
 
-    // HIGH-SPEED ZERO-DELAY 32MS BARCODE RECEIVER
+    // HIGH-SPEED 16MS OPTIMIZED BARCODE RECEIVER
     document.addEventListener('keydown', function(e) {
-      // If scanner hits 'Enter', submit instantly without waiting for timeout
       if (e.key === 'Enter') {
         e.preventDefault();
         clearTimeout(scanTimeout);
@@ -319,35 +320,31 @@
         scanBuffer += e.key;
       }
 
-      // Reset buffer only after 100ms of complete silence
+      // 45ms timeout perfectly tuned for ultra-fast 16ms scanner bursts
       clearTimeout(scanTimeout);
       scanTimeout = setTimeout(function() {
         if (scanBuffer.trim().length >= 10) {
           enqueueScan(scanBuffer.trim());
         }
         scanBuffer = '';
-      }, 100);
+      }, 45);
     });
 
-    // INSTANT CAPTURE ENGINE (HOLDS BARCODES WITHOUT DROPPING)
     function enqueueScan(code) {
       var cleanCode = String(code).replace(/\D/g, '').trim();
       
-      if (cleanCode.length < 10) return; // Ignore accidental keyboard presses
+      if (cleanCode.length < 10) return;
 
       if (navigator.vibrate) navigator.vibrate(30);
 
-      // Increment optimistic UI state immediately
       cachedScanned = Math.min(cachedTotal, cachedScanned + 1);
       applyLiquidLevel();
 
-      // Push barcode into the queue hold tank
       scanQueue.push(cleanCode);
       updateSyncStatus('syncing');
       processNextQueueItem();
     }
 
-    // CHANNELIZED SINGLE-PIPE CHANNEL TO GOOGLE SCRIPT WITH RE-TRY ON CHOKE
     function processNextQueueItem() {
       if (isProcessingQueue || scanQueue.length === 0) {
         if (scanQueue.length === 0) updateSyncStatus('idle');
@@ -361,7 +358,6 @@
       callApi({ action: 'scan', code: currentCode })
         .then(function(result) {
           if (result && result.success) {
-            // CONFIRMED WRITE -> Remove from queue array
             scanQueue.shift();
             isProcessingQueue = false;
             updateSyncStatus('idle');
@@ -369,17 +365,15 @@
             if (scanQueue.length > 0) {
               processNextQueueItem();
             } else {
-              setTimeout(sendWarmUpPing, 200);
+              setTimeout(sendWarmUpPing, 150);
             }
           } else {
-            // SCRIPT CHOKED/BUSY -> Retain barcode in scanQueue[0], turn dot red, retry
             isProcessingQueue = false;
             updateSyncStatus('error', "Backend Busy — Re-sending Scan...");
             setTimeout(processNextQueueItem, 1000);
           }
         })
         .catch(function(err) {
-          // NETWORK CHOKED/COLD START -> Retain barcode in scanQueue[0], turn dot red, retry
           isProcessingQueue = false;
           updateSyncStatus('error', "Waking Server — Retrying Scan...");
           setTimeout(processNextQueueItem, 1200);
