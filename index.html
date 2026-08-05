@@ -55,21 +55,11 @@
     #countDisplay { font-size: 52px; font-weight: 800; color: #0f172a; letter-spacing: -1px; }
 
     #syncIndicator {
-      margin-top: 6px; margin-bottom: 6px;
+      margin-top: 6px; margin-bottom: 18px;
       font-size: 12px; font-weight: 600; color: #94a3b8;
       letter-spacing: 0.2px;
       display: flex; align-items: center; justify-content: center; gap: 8px;
     }
-
-    #lastScanLine {
-      min-height: 20px;
-      margin-bottom: 14px;
-      font-size: 13px; font-weight: 700; color: #0f172a;
-      letter-spacing: 0.2px;
-      opacity: 0;
-      transition: opacity 0.15s ease;
-    }
-    #lastScanLine.visible { opacity: 1; }
 
     .dot {
       width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0;
@@ -178,7 +168,6 @@
     </div>
 
     <div id="syncIndicator"><span class="dot idle" id="syncDot"></span> <span id="syncText">Live Sync Active</span></div>
-    <div id="lastScanLine"></div>
 
     <div class="actionRow">
       <div class="btnGroup">
@@ -246,7 +235,7 @@
         syncText.textContent = customMessage || "Backend Busy — Retrying...";
       } else if (state === 'syncing') {
         syncDot.className = "dot syncing";
-        syncText.textContent = customMessage || ("Channelizing (" + scanQueue.length + " queued)...");
+        syncText.textContent = customMessage || ("Queued (" + scanQueue.length + ")");
       } else {
         syncDot.className = "dot idle";
         syncText.textContent = "Live Sync Active";
@@ -320,20 +309,11 @@
       }
     });
 
-    var lastScanEl = document.getElementById('lastScanLine');
-
     function enqueueScan(code) {
       var cleanCode = String(code).replace(/\D/g, '').trim();
       if (cleanCode.length < 10) return;
 
       if (navigator.vibrate) navigator.vibrate(30);
-
-      // Show the raw scanned digits on screen the instant they're
-      // captured - before even sending anything to the server - so
-      // there's zero perceived delay between the physical scan and
-      // seeing something happen on screen.
-      lastScanEl.textContent = 'Scanned: ' + cleanCode.substring(0, 13);
-      lastScanEl.classList.add('visible');
 
       scanQueue.push(cleanCode);
       updateSyncStatus('syncing');
@@ -348,7 +328,7 @@
 
       isProcessingQueue = true;
       var currentCode = scanQueue[0];
-      updateSyncStatus('syncing', "Channelizing scan (" + scanQueue.length + " queued)...");
+      updateSyncStatus('syncing', "Queued (" + scanQueue.length + ")");
 
       callApi({ action: 'scan', code: currentCode })
         .then(function(result) {
@@ -357,8 +337,6 @@
 
           if (result && result.success) {
             updateSyncStatus('idle');
-            // Confirm with the real parsed values once the server responds
-            lastScanEl.textContent = 'Game ' + result.game + ' \u2192 Ticket ' + result.ticket;
             // Update the ring INSTANTLY using the result we already have,
             // instead of waiting on a second separate network round-trip
             // just to re-fetch the same count. Only counts it if this
@@ -373,7 +351,6 @@
             if (scanQueue.length > 0) processNextQueueItem();
           } else {
             var msg = (result && result.message) ? result.message : "Game Not Found";
-            lastScanEl.textContent = '\u26a0\ufe0f ' + msg;
             updateSyncStatus('error', msg);
             setTimeout(function() { updateSyncStatus('idle'); }, 3000);
             if (scanQueue.length > 0) processNextQueueItem();
