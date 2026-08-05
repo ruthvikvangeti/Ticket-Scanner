@@ -21,47 +21,48 @@
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
       padding: 10px 14px 16px 14px;
-      background: #f8fafc; color: #0f172a;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: #ffffff; color: #0f172a;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
       min-height: 100vh;
-      padding-top: max(10px, env(safe-area-inset-top));
+      padding-top: max(8vh, env(safe-area-inset-top));
       padding-bottom: max(20px, env(safe-area-inset-bottom));
     }
 
     #mainCard {
-      width: 100%; max-width: 420px;
+      width: 100%; max-width: 440px;
       display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-      background: #ffffff; border-radius: 24px; border: 1px solid #e2e8f0;
-      padding: 14px 14px 16px 14px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      background: #ffffff; border-radius: 28px; border: 1px solid #eef1f5;
+      padding: 28px 22px 24px 22px;
+      box-shadow: 0 20px 45px -12px rgba(15, 23, 42, 0.09), 0 2px 8px rgba(15, 23, 42, 0.04);
     }
 
     .circle-container {
-      position: relative; width: 260px; height: 260px;
+      position: relative; width: 310px; height: 310px;
       display: flex; align-items: center; justify-content: center;
-      margin-top: 4px; margin-bottom: 4px;
+      margin-top: 4px; margin-bottom: 8px;
     }
     svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-    circle { fill: none; stroke-width: 16; stroke-linecap: round; }
-    .bg-ring { stroke: #f1f5f9; }
+    circle { fill: none; stroke-width: 14; stroke-linecap: round; }
+    .bg-ring { stroke: #f4f6f9; }
     .progress-ring {
       stroke: #00F0FF; stroke-dasharray: 660; stroke-dashoffset: 660;
       opacity: 0;
       transition: stroke-dashoffset 0.15s ease, opacity 0.15s ease;
-      filter: drop-shadow(0 4px 10px rgba(0, 240, 255, 0.4));
+      filter: drop-shadow(0 6px 14px rgba(0, 240, 255, 0.35));
     }
 
     .ring-text { position: absolute; text-align: center; pointer-events: none; }
-    #countDisplay { font-size: 46px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+    #countDisplay { font-size: 52px; font-weight: 800; color: #0f172a; letter-spacing: -1px; }
 
     #syncIndicator {
-      margin-top: 4px; margin-bottom: 8px;
-      font-size: 12px; font-weight: 700; color: #64748b;
+      margin-top: 6px; margin-bottom: 18px;
+      font-size: 12px; font-weight: 600; color: #94a3b8;
+      letter-spacing: 0.2px;
       display: flex; align-items: center; justify-content: center; gap: 8px;
     }
 
     .dot {
-      width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0;
+      width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0;
       transition: background-color 0.2s ease, box-shadow 0.2s ease;
     }
 
@@ -95,16 +96,22 @@
       100% { transform: scale(0.9); opacity: 0.7; }
     }
 
-    .actionRow { display: flex; flex-direction: column; gap: 8px; width: 100%; }
-    .btnGroup { display: flex; gap: 8px; }
+    .actionRow { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+    .btnGroup { display: flex; gap: 10px; }
     button {
-      flex: 1; padding: 12px; font-size: 14px; font-weight: 700; color: white;
-      border: none; border-radius: 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: transform 0.1s ease;
+      flex: 1; padding: 14px; font-size: 14px; font-weight: 700; color: white;
+      border: none; border-radius: 14px; cursor: pointer;
+      box-shadow: 0 2px 6px rgba(15,23,42,0.06);
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      letter-spacing: 0.1px;
     }
-    #previewBtn { background: #2563eb; color: #ffffff; border: 1px solid #1d4ed8; font-size: 15px; padding: 13px; }
-    #endDayBtn { background: #00F0FF; color: #0f172a; font-weight: 800; }
+    #previewBtn {
+      background: #0f172a; color: #ffffff; font-size: 14px; padding: 14px;
+      box-shadow: 0 4px 12px rgba(15,23,42,0.18);
+    }
+    #endDayBtn { background: #00F0FF; color: #ffffff; font-weight: 700; }
     #resetBtn { background: #ef4444; }
-    button:active { transform: scale(0.96); }
+    button:active { transform: scale(0.96); box-shadow: 0 1px 3px rgba(15,23,42,0.08); }
 
     /* PREVIEW MODAL */
     #previewModal {
@@ -163,11 +170,11 @@
     <div id="syncIndicator"><span class="dot idle" id="syncDot"></span> <span id="syncText">Live Sync Active</span></div>
 
     <div class="actionRow">
-      <button id="previewBtn" onclick="openPreview()">Preview & Print</button>
       <div class="btnGroup">
         <button id="endDayBtn" onclick="handleEndDay(event)">End of Day</button>
         <button id="resetBtn" onclick="handleReset(event)">Reset Day</button>
       </div>
+      <button id="previewBtn" onclick="openPreview()">Preview & Print</button>
     </div>
   </div>
 
@@ -234,6 +241,8 @@
         syncText.textContent = "Live Sync Active";
       }
     }
+
+    var scannedGamesToday = new Set();
 
     function syncWithBackend() {
       if (!API_URL || isProcessingQueue) return;
@@ -305,7 +314,17 @@
 
           if (result && result.success) {
             updateSyncStatus('idle');
-            syncWithBackend();
+            // Update the ring INSTANTLY using the result we already have,
+            // instead of waiting on a second separate network round-trip
+            // just to re-fetch the same count. Only counts it if this
+            // specific game wasn't already marked scanned today, matching
+            // the backend's own counting rule. The regular 2-second
+            // background poll still runs independently and will correct
+            // anything if this local guess and the server ever disagree.
+            if (result.game && !scannedGamesToday.has(result.game)) {
+              scannedGamesToday.add(result.game);
+              renderDisplay(currentScanned + 1, currentTotal);
+            }
             if (scanQueue.length > 0) processNextQueueItem();
           } else {
             var msg = (result && result.message) ? result.message : "Game Not Found";
@@ -429,6 +448,7 @@
 
       callApi({ action: 'endday' }).then(function(res) {
         if (res && res.success) {
+          scannedGamesToday.clear();
           renderDisplay(0, currentTotal);
           updateSyncStatus('idle');
           syncWithBackend();
@@ -447,6 +467,7 @@
 
       callApi({ action: 'reset' }).then(function(res) {
         if (res && res.success) {
+          scannedGamesToday.clear();
           renderDisplay(0, currentTotal);
           updateSyncStatus('idle');
           syncWithBackend();
