@@ -206,9 +206,8 @@
   </div>
 
   <script>
-    var DIRECT_DEPLOY_URL = 'https://script.google.com/macros/s/AKfycbwF_o5fM-Dt-ztcMNcKNRMgjqTkOVl4K5jc9H3su4AMYepGfxviuW5XozyDcoNquKS7/exec';
+    var DIRECT_DEPLOY_URL = 'https://script.google.com/macros/s/AKfycbw_2b6OST3LlasY4TnL5mTh3Q7XoXchrCiAk-ywh7ToeYXWK3w2SdX38HJ2vYt01CzH/exec';
     
-    // Always sync with the newly active Apps Script deployment
     localStorage.setItem('appsScriptUrl', DIRECT_DEPLOY_URL);
     var API_URL = DIRECT_DEPLOY_URL;
 
@@ -279,6 +278,12 @@
     syncWithBackend();
     setInterval(syncWithBackend, 2000);
 
+    // Single source of truth for detecting a completed scan: the Enter/CR
+    // character the scanner sends after the barcode digits. The previous
+    // version ALSO had a separate timer-based listener on every keystroke
+    // that could independently auto-submit - these two could race each
+    // other and cause duplicate or malformed submissions. Removed that
+    // second listener entirely; this one is simpler and more reliable.
     scannerInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         e.preventDefault();
@@ -286,18 +291,6 @@
         scannerInput.value = '';
         if (codeToSubmit.length >= 10) enqueueScan(codeToSubmit);
       }
-    });
-
-    var inputTimeout;
-    scannerInput.addEventListener('input', function() {
-      clearTimeout(inputTimeout);
-      inputTimeout = setTimeout(function() {
-        var val = scannerInput.value.trim();
-        if (val.length >= 24 || (val.length >= 13 && val.length <= 14)) {
-          scannerInput.value = '';
-          enqueueScan(val);
-        }
-      }, 60);
     });
 
     function enqueueScan(code) {
@@ -407,11 +400,17 @@
       return new Promise(function(resolve, reject) {
         if (!API_URL) return reject('no url');
         var callbackName = 'jsonpCallback_' + (jsonpCounter++) + '_' + Date.now();
-        
+
+        // Increased from 8s to 18s - a real scan does more server-side
+        // work (reads + writes) than a simple progress check, and Apps
+        // Script's response time can vary meaningfully depending on load
+        // and connection quality. The previous 8s limit was likely
+        // cutting off requests that would have succeeded given more time,
+        // which is exactly what "Network Error" was actually reporting.
         var timeoutId = setTimeout(function() {
           cleanup();
           reject(new Error('Timeout'));
-        }, 8000);
+        }, 18000);
 
         function cleanup() {
           clearTimeout(timeoutId);
