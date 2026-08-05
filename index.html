@@ -55,7 +55,7 @@
     #countDisplay { font-size: 36px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
 
     #syncIndicator {
-      margin-top: 4px; margin-bottom: 12px;
+      margin-top: 4px; margin-bottom: 8px;
       font-size: 12px; font-weight: 700; color: #64748b;
       display: flex; align-items: center; justify-content: center; gap: 8px;
     }
@@ -93,6 +93,22 @@
       0% { transform: scale(0.9); opacity: 0.7; }
       50% { transform: scale(1.35); opacity: 1; }
       100% { transform: scale(0.9); opacity: 0.7; }
+    }
+
+    /* SCANNER INPUT BOX FOR MOBILE SAFARI HID CAPTURE */
+    .scanner-field-container {
+      width: 100%; margin-bottom: 12px;
+    }
+    #scannerInput {
+      width: 100%; padding: 10px 14px; font-size: 14px; font-weight: 600;
+      border-radius: 12px; border: 2px solid #00F0FF; background: #f0fdf4;
+      color: #0f172a; text-align: center; outline: none;
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+      transition: border-color 0.2s ease, background-color 0.2s ease;
+    }
+    #scannerInput:focus {
+      border-color: #2563eb; background: #ffffff;
+      box-shadow: 0 0 12px rgba(37, 99, 235, 0.3);
     }
 
     .actionRow { display: flex; flex-direction: column; gap: 8px; width: 100%; }
@@ -147,22 +163,9 @@
     .excel-grandtotal td {
       background: #dbeafe; font-weight: bold; font-size: 13px; color: #000000; border-top: 2px solid #000000; border-bottom: 3px double #000000;
     }
-
-    #configBox {
-      width: 100%; max-width: 420px; margin-bottom: 8px; padding: 10px;
-      background: #ffffff; border-radius: 16px; border: 1px solid #e2e8f0; font-size: 12px;
-      display: none;
-    }
-    #configBox input { width: 100%; padding: 8px; margin-top: 4px; border-radius: 8px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; box-sizing: border-box; }
   </style>
 </head>
 <body>
-
-  <div id="configBox">
-    <div><b>Apps Script URL:</b></div>
-    <input type="text" id="apiUrlInput">
-    <button onclick="saveApiUrl()" style="margin-top:8px; background:#2563eb; color:#fff; border:none; padding:8px; width:100%; border-radius:8px; font-weight:bold;">Save & Sync</button>
-  </div>
 
   <div id="mainCard">
     <div class="circle-container">
@@ -176,6 +179,11 @@
     </div>
 
     <div id="syncIndicator"><span class="dot idle" id="syncDot"></span> <span id="syncText">Live Sync Active</span></div>
+
+    <!-- EXPLICIT MOBILE FOCUS TARGET FOR BLUETOOTH SCANNERS -->
+    <div class="scanner-field-container">
+      <input type="text" id="scannerInput" placeholder="Ready to Scan" autocomplete="off" inputmode="none">
+    </div>
 
     <div class="actionRow">
       <button id="previewBtn" onclick="openPreview()">Preview & Print</button>
@@ -208,15 +216,14 @@
   <script>
     var DIRECT_DEPLOY_URL = 'https://script.google.com/macros/s/AKfycbzjXDoJDyja6w1HcOGnj7ZfWAjbMPagbajD_E1lqVH0V5mTwOse3Xr13S3U1uEuFb6l/exec';
     
-    // Always bind direct deployment URL
     localStorage.setItem('appsScriptUrl', DIRECT_DEPLOY_URL);
     var API_URL = DIRECT_DEPLOY_URL;
-    document.getElementById('apiUrlInput').value = API_URL;
 
     var ringFill = document.getElementById('ringFill');
     var countDisplay = document.getElementById('countDisplay');
     var syncText = document.getElementById('syncText');
     var syncDot = document.getElementById('syncDot');
+    var scannerInput = document.getElementById('scannerInput');
 
     var cachedTotal = parseInt(localStorage.getItem('cachedTotal'), 10) || 42;
     var cachedScanned = parseInt(localStorage.getItem('cachedScanned'), 10) || 0;
@@ -224,6 +231,23 @@
 
     var scanQueue = [];
     var isProcessingQueue = false;
+
+    // AUTO FOCUS SCANNED FIELD ON MOBILE LOAD & SCREEN TAP
+    function keepFocusOnScanner() {
+      if (document.activeElement !== scannerInput) {
+        scannerInput.focus();
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', function() {
+      keepFocusOnScanner();
+    });
+
+    document.addEventListener('click', function(e) {
+      if (e.target.tagName !== 'BUTTON' && !e.target.closest('#previewModal')) {
+        keepFocusOnScanner();
+      }
+    });
 
     function setCircleProgress(fraction) {
       var f = Math.max(0, Math.min(1, fraction));
@@ -270,32 +294,29 @@
     sendWarmUpPing();
     setInterval(sendWarmUpPing, 3000);
 
-    var scanBuffer = '';
-    var scanTimeout;
-
-    document.addEventListener('keydown', function(e) {
+    // HANDLES HARDWARE/BLUETOOTH SCANNER ENTER KEY
+    scannerInput.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         e.preventDefault();
-        clearTimeout(scanTimeout);
-        var codeToSubmit = scanBuffer.trim();
-        scanBuffer = '';
-        if (codeToSubmit) enqueueScan(codeToSubmit);
-        return;
-      }
-
-      if (e.key === 'Backspace') {
-        scanBuffer = scanBuffer.slice(0, -1);
-      } else if (e.key.length === 1) {
-        scanBuffer += e.key;
-      }
-
-      clearTimeout(scanTimeout);
-      scanTimeout = setTimeout(function() {
-        if (scanBuffer.trim().length >= 10) {
-          enqueueScan(scanBuffer.trim());
+        var codeToSubmit = scannerInput.value.trim();
+        scannerInput.value = '';
+        if (codeToSubmit.length >= 10) {
+          enqueueScan(codeToSubmit);
         }
-        scanBuffer = '';
-      }, 45);
+      }
+    });
+
+    // HANDLES FAST CONTINUOUS TYPING FROM MOBILE SCANNERS
+    var inputTimeout;
+    scannerInput.addEventListener('input', function() {
+      clearTimeout(inputTimeout);
+      inputTimeout = setTimeout(function() {
+        var val = scannerInput.value.trim();
+        if (val.length >= 24 || (val.length >= 13 && val.length <= 14)) {
+          scannerInput.value = '';
+          enqueueScan(val);
+        }
+      }, 60);
     });
 
     function enqueueScan(code) {
@@ -364,6 +385,7 @@
 
     function closePreview() {
       document.getElementById('previewModal').style.display = 'none';
+      keepFocusOnScanner();
     }
 
     function renderExcelStyleReportHTML(rpt) {
@@ -428,7 +450,7 @@
         };
 
         params.callback = callbackName;
-        params._t = Date.now(); // ANTI-CACHE STAMP FOR SAFARI
+        params._t = Date.now();
         
         var url = API_URL + '?' + new URLSearchParams(params).toString();
         var script = document.createElement('script');
