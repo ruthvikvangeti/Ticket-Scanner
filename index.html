@@ -47,7 +47,7 @@
     .progress-ring {
       stroke: #00F0FF; stroke-dasharray: 660; stroke-dashoffset: 660;
       opacity: 0;
-      transition: stroke-dashoffset 0.15s ease, opacity 0.15s ease;
+      transition: stroke-dashoffset 0.12s ease-out, opacity 0.12s ease-out;
       filter: drop-shadow(0 6px 14px rgba(0, 240, 255, 0.35));
     }
 
@@ -213,6 +213,7 @@
 
     var scanQueue = [];
     var isProcessingQueue = false;
+    var scannedGamesToday = new Set();
 
     function setCircleProgress(fraction) {
       var f = Math.max(0, Math.min(1, fraction));
@@ -227,6 +228,13 @@
       currentTotal = total > 0 ? total : 42;
       countDisplay.textContent = currentScanned + ' / ' + currentTotal;
       setCircleProgress(currentTotal > 0 ? currentScanned / currentTotal : 0);
+      
+      try {
+        localStorage.setItem('lastKnownProgress', JSON.stringify({
+          scanned: currentScanned,
+          total: currentTotal
+        }));
+      } catch (e) {}
     }
 
     function updateSyncStatus(state, customMessage) {
@@ -242,32 +250,7 @@
       }
     }
 
-    var scannedGamesToday = new Set();
-
-    function syncWithBackend() {
-      if (!API_URL || isProcessingQueue) return;
-      callApi({ action: 'progress' }).then(function(result) {
-        if (result && result.success) {
-          renderDisplay(result.scannedToday || 0, result.totalGames || 42);
-          if (scanQueue.length === 0) updateSyncStatus('idle');
-          // Cache the last known good numbers so the next page load can
-          // show something instantly instead of a blank ring while
-          // waiting on the network.
-          try {
-            localStorage.setItem('lastKnownProgress', JSON.stringify({
-              scanned: result.scannedToday || 0,
-              total: result.totalGames || 42
-            }));
-          } catch (e) {}
-        }
-      }).catch(function(err) {});
-    }
-
-    // Instant paint on load: use whatever was cached from last time, so
-    // the ring shows real-looking numbers immediately, before the actual
-    // network round-trip even starts. This gets corrected within a
-    // moment by the real fetch below regardless, so it's never stale for
-    // long - it just removes the "blank while waiting" feeling.
+    // INSTANT STARTUP PAINT FROM LOCAL CACHE
     (function paintFromCache() {
       try {
         var cached = JSON.parse(localStorage.getItem('lastKnownProgress'));
@@ -277,20 +260,23 @@
       } catch (e) {}
     })();
 
-    syncWithBackend();
-    // Polling every 2 seconds is also what keeps multiple devices/browsers
-    // in sync with each other automatically - if someone scans on a
-    // different phone or computer with this same page open, every other
-    // open copy of the page picks up that change within 2 seconds, without
-    // needing a manual refresh anywhere.
-    setInterval(syncWithBackend, 2000);
+    function syncWithBackend() {
+      if (!API_URL || isProcessingQueue) return;
+      callApi({ action: 'progress' }).then(function(result) {
+        if (result && result.success) {
+          // Sync server truth only if local isn't ahead due to optimistic scans
+          if (scanQueue.length === 0) {
+            renderDisplay(result.scannedToday || 0, result.totalGames || 42);
+            updateSyncStatus('idle');
+          }
+        }
+      }).catch(function(err) {});
+    }
 
-    // No visible input field, no tap-to-focus needed - the page is ready
-    // to accept scans the instant it loads. The physical Bluetooth
-    // scanner sends real keydown events regardless of what has focus (or
-    // whether anything is focused at all), so listening at the document
-    // level catches every scan immediately, with nothing to tap first and
-    // no on-screen keyboard ever triggered.
+    syncWithBackend();
+    setInterval(syncWithBackend, 2500);
+
+    // DIRECT HARDWARE KEYBOARD LISTEN ENGINE
     var scanBuffer = '';
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
@@ -315,6 +301,15 @@
 
       if (navigator.vibrate) navigator.vibrate(30);
 
+      // Extract Game # (first 4 digits) to prevent double counting locally
+      var gameNum = String(parseInt(cleanCode.substring(0, 4), 10));
+
+      // OPTIMISTIC UPDATE: Increment UI instantly in 0ms
+      if (!scannedGamesToday.has(gameNum)) {
+        scannedGamesToday.add(gameNum);
+        renderDisplay(currentScanned + 1, currentTotal);
+      }
+
       scanQueue.push(cleanCode);
       updateSyncStatus('syncing');
       processNextQueueItem();
@@ -336,19 +331,12 @@
           isProcessingQueue = false;
 
           if (result && result.success) {
-            updateSyncStatus('idle');
-            // Update the ring INSTANTLY using the result we already have,
-            // instead of waiting on a second separate network round-trip
-            // just to re-fetch the same count. Only counts it if this
-            // specific game wasn't already marked scanned today, matching
-            // the backend's own counting rule. The regular 2-second
-            // background poll still runs independently and will correct
-            // anything if this local guess and the server ever disagree.
-            if (result.game && !scannedGamesToday.has(result.game)) {
-              scannedGamesToday.add(result.game);
-              renderDisplay(currentScanned + 1, currentTotal);
+            if (scanQueue.length === 0) {
+              updateSyncStatus('idle');
+              syncWithBackend();
+            } else {
+              processNextQueueItem();
             }
-            if (scanQueue.length > 0) processNextQueueItem();
           } else {
             var msg = (result && result.message) ? result.message : "Game Not Found";
             updateSyncStatus('error', msg);
@@ -426,12 +414,6 @@
         if (!API_URL) return reject('no url');
         var callbackName = 'jsonpCallback_' + (jsonpCounter++) + '_' + Date.now();
 
-        // Increased from 8s to 18s - a real scan does more server-side
-        // work (reads + writes) than a simple progress check, and Apps
-        // Script's response time can vary meaningfully depending on load
-        // and connection quality. The previous 8s limit was likely
-        // cutting off requests that would have succeeded given more time,
-        // which is exactly what "Network Error" was actually reporting.
         var timeoutId = setTimeout(function() {
           cleanup();
           reject(new Error('Timeout'));
