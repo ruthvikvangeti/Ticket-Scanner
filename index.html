@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Scratch-Off Scanner</title>
 
   <!-- iOS Web App Configuration -->
@@ -16,13 +16,13 @@
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
-      height: 100%; width: 100%; margin: 0; padding: 0; overflow: hidden;
+      height: 100%; width: 100%; margin: 0; padding: 0;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
       padding: 10px 14px 16px 14px;
       background: #f8fafc; color: #0f172a;
-      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
       min-height: 100vh;
       padding-top: max(10px, env(safe-area-inset-top));
       padding-bottom: max(20px, env(safe-area-inset-bottom));
@@ -37,9 +37,9 @@
     }
 
     .circle-container {
-      position: relative; width: 190px; height: 190px;
+      position: relative; width: 260px; height: 260px;
       display: flex; align-items: center; justify-content: center;
-      margin-top: 2px; margin-bottom: 2px;
+      margin-top: 4px; margin-bottom: 4px;
     }
     svg { width: 100%; height: 100%; transform: rotate(-90deg); }
     circle { fill: none; stroke-width: 16; stroke-linecap: round; }
@@ -52,7 +52,7 @@
     }
 
     .ring-text { position: absolute; text-align: center; pointer-events: none; }
-    #countDisplay { font-size: 36px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+    #countDisplay { font-size: 46px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
 
     #syncIndicator {
       margin-top: 4px; margin-bottom: 8px;
@@ -93,18 +93,6 @@
       0% { transform: scale(0.9); opacity: 0.7; }
       50% { transform: scale(1.35); opacity: 1; }
       100% { transform: scale(0.9); opacity: 0.7; }
-    }
-
-    .scanner-field-container { width: 100%; margin-bottom: 12px; }
-    #scannerInput {
-      width: 100%; padding: 10px 14px; font-size: 14px; font-weight: 600;
-      border-radius: 12px; border: 2px solid #00F0FF; background: #f0fdf4;
-      color: #0f172a; text-align: center; outline: none;
-      box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
-    }
-    #scannerInput:focus {
-      border-color: #2563eb; background: #ffffff;
-      box-shadow: 0 0 12px rgba(37, 99, 235, 0.3);
     }
 
     .actionRow { display: flex; flex-direction: column; gap: 8px; width: 100%; }
@@ -174,10 +162,6 @@
 
     <div id="syncIndicator"><span class="dot idle" id="syncDot"></span> <span id="syncText">Live Sync Active</span></div>
 
-    <div class="scanner-field-container">
-      <input type="text" id="scannerInput" placeholder="Ready to Scan" autocomplete="off" inputmode="none">
-    </div>
-
     <div class="actionRow">
       <button id="previewBtn" onclick="openPreview()">Preview & Print</button>
       <div class="btnGroup">
@@ -215,7 +199,6 @@
     var countDisplay = document.getElementById('countDisplay');
     var syncText = document.getElementById('syncText');
     var syncDot = document.getElementById('syncDot');
-    var scannerInput = document.getElementById('scannerInput');
 
     var currentScanned = 0;
     var currentTotal = 42;
@@ -223,19 +206,6 @@
 
     var scanQueue = [];
     var isProcessingQueue = false;
-
-    function keepFocusOnScanner() {
-      if (document.activeElement !== scannerInput) {
-        scannerInput.focus();
-      }
-    }
-
-    window.addEventListener('DOMContentLoaded', keepFocusOnScanner);
-    document.addEventListener('click', function(e) {
-      if (e.target.tagName !== 'BUTTON' && !e.target.closest('#previewModal')) {
-        keepFocusOnScanner();
-      }
-    });
 
     function setCircleProgress(fraction) {
       var f = Math.max(0, Math.min(1, fraction));
@@ -276,20 +246,34 @@
     }
 
     syncWithBackend();
+    // Polling every 2 seconds is also what keeps multiple devices/browsers
+    // in sync with each other automatically - if someone scans on a
+    // different phone or computer with this same page open, every other
+    // open copy of the page picks up that change within 2 seconds, without
+    // needing a manual refresh anywhere.
     setInterval(syncWithBackend, 2000);
 
-    // Single source of truth for detecting a completed scan: the Enter/CR
-    // character the scanner sends after the barcode digits. The previous
-    // version ALSO had a separate timer-based listener on every keystroke
-    // that could independently auto-submit - these two could race each
-    // other and cause duplicate or malformed submissions. Removed that
-    // second listener entirely; this one is simpler and more reliable.
-    scannerInput.addEventListener('keydown', function(e) {
+    // No visible input field, no tap-to-focus needed - the page is ready
+    // to accept scans the instant it loads. The physical Bluetooth
+    // scanner sends real keydown events regardless of what has focus (or
+    // whether anything is focused at all), so listening at the document
+    // level catches every scan immediately, with nothing to tap first and
+    // no on-screen keyboard ever triggered.
+    var scanBuffer = '';
+    document.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
         e.preventDefault();
-        var codeToSubmit = scannerInput.value.trim();
-        scannerInput.value = '';
+        var codeToSubmit = scanBuffer.trim();
+        scanBuffer = '';
         if (codeToSubmit.length >= 10) enqueueScan(codeToSubmit);
+        return;
+      }
+      if (e.key === 'Backspace') {
+        scanBuffer = scanBuffer.slice(0, -1);
+        return;
+      }
+      if (e.key.length === 1) {
+        scanBuffer += e.key;
       }
     });
 
@@ -354,7 +338,6 @@
 
     function closePreview() {
       document.getElementById('previewModal').style.display = 'none';
-      keepFocusOnScanner();
     }
 
     function renderExcelStyleReportHTML(rpt) {
