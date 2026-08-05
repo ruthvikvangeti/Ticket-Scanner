@@ -47,7 +47,7 @@
     .progress-ring {
       stroke: #00F0FF; stroke-dasharray: 660; stroke-dashoffset: 660;
       opacity: 0;
-      transition: stroke-dashoffset 0.12s ease-out, opacity 0.12s ease-out;
+      transition: stroke-dashoffset 0.1s ease-out, opacity 0.1s ease-out;
       filter: drop-shadow(0 6px 14px rgba(0, 240, 255, 0.35));
     }
 
@@ -199,7 +199,6 @@
   <script>
     var DIRECT_DEPLOY_URL = 'https://script.google.com/macros/s/AKfycbw_2b6OST3LlasY4TnL5mTh3Q7XoXchrCiAk-ywh7ToeYXWK3w2SdX38HJ2vYt01CzH/exec';
     
-    localStorage.setItem('appsScriptUrl', DIRECT_DEPLOY_URL);
     var API_URL = DIRECT_DEPLOY_URL;
 
     var ringFill = document.getElementById('ringFill');
@@ -213,7 +212,6 @@
 
     var scanQueue = [];
     var isProcessingQueue = false;
-    var scannedGamesToday = new Set();
 
     function setCircleProgress(fraction) {
       var f = Math.max(0, Math.min(1, fraction));
@@ -228,13 +226,6 @@
       currentTotal = total > 0 ? total : 42;
       countDisplay.textContent = currentScanned + ' / ' + currentTotal;
       setCircleProgress(currentTotal > 0 ? currentScanned / currentTotal : 0);
-      
-      try {
-        localStorage.setItem('lastKnownProgress', JSON.stringify({
-          scanned: currentScanned,
-          total: currentTotal
-        }));
-      } catch (e) {}
     }
 
     function updateSyncStatus(state, customMessage) {
@@ -250,33 +241,21 @@
       }
     }
 
-    // INSTANT STARTUP PAINT FROM LOCAL CACHE
-    (function paintFromCache() {
-      try {
-        var cached = JSON.parse(localStorage.getItem('lastKnownProgress'));
-        if (cached && typeof cached.scanned === 'number') {
-          renderDisplay(cached.scanned, cached.total);
-        }
-      } catch (e) {}
-    })();
-
     function syncWithBackend() {
       if (!API_URL || isProcessingQueue) return;
       callApi({ action: 'progress' }).then(function(result) {
-        if (result && result.success) {
-          // Sync server truth only if local isn't ahead due to optimistic scans
-          if (scanQueue.length === 0) {
-            renderDisplay(result.scannedToday || 0, result.totalGames || 42);
-            updateSyncStatus('idle');
-          }
+        if (result && result.success && scanQueue.length === 0) {
+          renderDisplay(result.scannedToday || 0, result.totalGames || 42);
+          updateSyncStatus('idle');
         }
       }).catch(function(err) {});
     }
 
     syncWithBackend();
-    setInterval(syncWithBackend, 2500);
+    // 5-second lightweight polling prevents flooding Apps Script
+    setInterval(syncWithBackend, 5000);
 
-    // DIRECT HARDWARE KEYBOARD LISTEN ENGINE
+    // DIRECT SCANNER LISTENER ENGINE
     var scanBuffer = '';
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
@@ -301,15 +280,6 @@
 
       if (navigator.vibrate) navigator.vibrate(30);
 
-      // Extract Game # (first 4 digits) to prevent double counting locally
-      var gameNum = String(parseInt(cleanCode.substring(0, 4), 10));
-
-      // OPTIMISTIC UPDATE: Increment UI instantly in 0ms
-      if (!scannedGamesToday.has(gameNum)) {
-        scannedGamesToday.add(gameNum);
-        renderDisplay(currentScanned + 1, currentTotal);
-      }
-
       scanQueue.push(cleanCode);
       updateSyncStatus('syncing');
       processNextQueueItem();
@@ -331,12 +301,10 @@
           isProcessingQueue = false;
 
           if (result && result.success) {
-            if (scanQueue.length === 0) {
-              updateSyncStatus('idle');
-              syncWithBackend();
-            } else {
-              processNextQueueItem();
-            }
+            updateSyncStatus('idle');
+            // Instant display update directly from the scan response payload
+            renderDisplay(currentScanned + 1, currentTotal);
+            if (scanQueue.length > 0) processNextQueueItem();
           } else {
             var msg = (result && result.message) ? result.message : "Game Not Found";
             updateSyncStatus('error', msg);
@@ -417,7 +385,7 @@
         var timeoutId = setTimeout(function() {
           cleanup();
           reject(new Error('Timeout'));
-        }, 18000);
+        }, 12000);
 
         function cleanup() {
           clearTimeout(timeoutId);
@@ -453,7 +421,6 @@
 
       callApi({ action: 'endday' }).then(function(res) {
         if (res && res.success) {
-          scannedGamesToday.clear();
           renderDisplay(0, currentTotal);
           updateSyncStatus('idle');
           syncWithBackend();
@@ -472,7 +439,6 @@
 
       callApi({ action: 'reset' }).then(function(res) {
         if (res && res.success) {
-          scannedGamesToday.clear();
           renderDisplay(0, currentTotal);
           updateSyncStatus('idle');
           syncWithBackend();
