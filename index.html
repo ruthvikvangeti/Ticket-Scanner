@@ -55,11 +55,21 @@
     #countDisplay { font-size: 52px; font-weight: 800; color: #0f172a; letter-spacing: -1px; }
 
     #syncIndicator {
-      margin-top: 6px; margin-bottom: 18px;
+      margin-top: 6px; margin-bottom: 6px;
       font-size: 12px; font-weight: 600; color: #94a3b8;
       letter-spacing: 0.2px;
       display: flex; align-items: center; justify-content: center; gap: 8px;
     }
+
+    #lastScanLine {
+      min-height: 20px;
+      margin-bottom: 14px;
+      font-size: 13px; font-weight: 700; color: #0f172a;
+      letter-spacing: 0.2px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    #lastScanLine.visible { opacity: 1; }
 
     .dot {
       width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0;
@@ -168,6 +178,7 @@
     </div>
 
     <div id="syncIndicator"><span class="dot idle" id="syncDot"></span> <span id="syncText">Live Sync Active</span></div>
+    <div id="lastScanLine"></div>
 
     <div class="actionRow">
       <div class="btnGroup">
@@ -250,9 +261,32 @@
         if (result && result.success) {
           renderDisplay(result.scannedToday || 0, result.totalGames || 42);
           if (scanQueue.length === 0) updateSyncStatus('idle');
+          // Cache the last known good numbers so the next page load can
+          // show something instantly instead of a blank ring while
+          // waiting on the network.
+          try {
+            localStorage.setItem('lastKnownProgress', JSON.stringify({
+              scanned: result.scannedToday || 0,
+              total: result.totalGames || 42
+            }));
+          } catch (e) {}
         }
       }).catch(function(err) {});
     }
+
+    // Instant paint on load: use whatever was cached from last time, so
+    // the ring shows real-looking numbers immediately, before the actual
+    // network round-trip even starts. This gets corrected within a
+    // moment by the real fetch below regardless, so it's never stale for
+    // long - it just removes the "blank while waiting" feeling.
+    (function paintFromCache() {
+      try {
+        var cached = JSON.parse(localStorage.getItem('lastKnownProgress'));
+        if (cached && typeof cached.scanned === 'number') {
+          renderDisplay(cached.scanned, cached.total);
+        }
+      } catch (e) {}
+    })();
 
     syncWithBackend();
     // Polling every 2 seconds is also what keeps multiple devices/browsers
@@ -286,11 +320,20 @@
       }
     });
 
+    var lastScanEl = document.getElementById('lastScanLine');
+
     function enqueueScan(code) {
       var cleanCode = String(code).replace(/\D/g, '').trim();
       if (cleanCode.length < 10) return;
 
       if (navigator.vibrate) navigator.vibrate(30);
+
+      // Show the raw scanned digits on screen the instant they're
+      // captured - before even sending anything to the server - so
+      // there's zero perceived delay between the physical scan and
+      // seeing something happen on screen.
+      lastScanEl.textContent = 'Scanned: ' + cleanCode.substring(0, 13);
+      lastScanEl.classList.add('visible');
 
       scanQueue.push(cleanCode);
       updateSyncStatus('syncing');
@@ -314,6 +357,8 @@
 
           if (result && result.success) {
             updateSyncStatus('idle');
+            // Confirm with the real parsed values once the server responds
+            lastScanEl.textContent = 'Game ' + result.game + ' \u2192 Ticket ' + result.ticket;
             // Update the ring INSTANTLY using the result we already have,
             // instead of waiting on a second separate network round-trip
             // just to re-fetch the same count. Only counts it if this
@@ -328,6 +373,7 @@
             if (scanQueue.length > 0) processNextQueueItem();
           } else {
             var msg = (result && result.message) ? result.message : "Game Not Found";
+            lastScanEl.textContent = '\u26a0\ufe0f ' + msg;
             updateSyncStatus('error', msg);
             setTimeout(function() { updateSyncStatus('idle'); }, 3000);
             if (scanQueue.length > 0) processNextQueueItem();
