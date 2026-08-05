@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Scratch-Off Scanner</title>
 
+  <!-- iOS Web App Configuration -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Ticket Scanner">
@@ -205,8 +206,10 @@
   </div>
 
   <script>
-    var DIRECT_DEPLOY_URL = 'https://script.google.com/macros/s/AKfycbzjXDoJDyja6w1HcOGnj7ZfWAjbMPagbajD_E1lqVH0V5mTwOse3Xr13S3U1uEuFb6l/exec';
+    var DIRECT_DEPLOY_URL = 'https://script.google.com/macros/s/AKfycbwF_o5fM-Dt-ztcMNcKNRMgjqTkOVl4K5jc9H3su4AMYepGfxviuW5XozyDcoNquKS7/exec';
     
+    // Always sync with the newly active Apps Script deployment
+    localStorage.setItem('appsScriptUrl', DIRECT_DEPLOY_URL);
     var API_URL = DIRECT_DEPLOY_URL;
 
     var ringFill = document.getElementById('ringFill');
@@ -263,7 +266,6 @@
       }
     }
 
-    // PULLS SINGLE SOURCE OF TRUTH FROM GOOGLE SHEETS
     function syncWithBackend() {
       if (!API_URL || isProcessingQueue) return;
       callApi({ action: 'progress' }).then(function(result) {
@@ -274,7 +276,6 @@
       }).catch(function(err) {});
     }
 
-    // Immediate sync on page load + polling every 2 seconds
     syncWithBackend();
     setInterval(syncWithBackend, 2000);
 
@@ -327,7 +328,7 @@
 
           if (result && result.success) {
             updateSyncStatus('idle');
-            syncWithBackend(); // Force immediate re-sync across all open clients
+            syncWithBackend();
             if (scanQueue.length > 0) processNextQueueItem();
           } else {
             var msg = (result && result.message) ? result.message : "Game Not Found";
