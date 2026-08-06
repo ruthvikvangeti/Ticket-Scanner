@@ -163,7 +163,7 @@
         <circle class="progress-ring" id="ringFill" cx="115" cy="115" r="105"></circle>
       </svg>
       <div class="ring-text">
-        <div id="countDisplay">0 / 42</div>
+        <div id="countDisplay">0 / 65</div>
       </div>
     </div>
 
@@ -206,14 +206,12 @@
     var syncText = document.getElementById('syncText');
     var syncDot = document.getElementById('syncDot');
 
-    var currentScanned = 0;
-    var currentTotal = 65; // matches the current 8-category sheet layout (was 42, stale)
+    var currentScanned = parseInt(localStorage.getItem('lastScannedCount') || '0', 10);
+    var currentTotal = parseInt(localStorage.getItem('lastTotalCount') || '65', 10); // matches the 8-category sheet layout
     const CIRCUMFERENCE = 660;
 
     var scanQueue = JSON.parse(localStorage.getItem('pendingScanQueue') || '[]');
-    var isFlushingQueue = false;
-    var BATCH_SIZE = 25;
-    var FLUSH_INTERVAL_MS = 1200;
+    var isProcessingQueue = false;
 
     function persistQueue() {
       localStorage.setItem('pendingScanQueue', JSON.stringify(scanQueue));
@@ -229,10 +227,17 @@
 
     function renderDisplay(scanned, total) {
       currentScanned = scanned;
-      currentTotal = total > 0 ? total : 42;
+      currentTotal = total > 0 ? total : 65;
       countDisplay.textContent = currentScanned + ' / ' + currentTotal;
       setCircleProgress(currentTotal > 0 ? currentScanned / currentTotal : 0);
+      localStorage.setItem('lastScannedCount', currentScanned);
+      localStorage.setItem('lastTotalCount', currentTotal);
     }
+
+    // Paint the last known numbers immediately, before any network call -
+    // the ring/count are never blank on load, they show whatever was true
+    // last time this device synced.
+    renderDisplay(currentScanned, currentTotal);
 
     function updateSyncStatus(state, customMessage) {
       if (state === 'error') {
@@ -240,10 +245,10 @@
         syncText.textContent = customMessage || "Backend Busy — Retrying...";
       } else if (state === 'syncing') {
         syncDot.className = "dot syncing";
-        syncText.textContent = customMessage || ("Sending " + Math.min(scanQueue.length, BATCH_SIZE) + " (queued: " + scanQueue.length + ")");
+        syncText.textContent = customMessage || ("Queued (" + scanQueue.length + ")");
       } else if (scanQueue.length > 0) {
         syncDot.className = "dot syncing";
-        syncText.textContent = "Queued (" + scanQueue.length + ") — sending soon";
+        syncText.textContent = "Queued (" + scanQueue.length + ")";
       } else {
         syncDot.className = "dot idle";
         syncText.textContent = "Live Sync Active";
@@ -251,22 +256,27 @@
     }
 
     function syncWithBackend() {
-      if (!API_URL || isFlushingQueue) return;
+      if (!API_URL || isProcessingQueue) return;
       callApi({ action: 'progress' }).then(function(result) {
         if (result && result.success && scanQueue.length === 0) {
-          renderDisplay(result.scannedToday || 0, result.totalGames || 42);
+          renderDisplay(result.scannedToday || 0, result.totalGames || 65);
           updateSyncStatus('idle');
         }
       }).catch(function(err) {});
     }
 
     syncWithBackend();
-    // Polling eased from 5s to 15s - the sheet now carries 48 conditional
-    // formatting rules, 11 data validations, sheet protection, and a
-    // VLOOKUP + rollover formula on every row, so each backend call costs
-    // more than it used to. Real-time-to-the-second sync isn't essential
-    // here; this trades a little freshness for a lot less backend load.
-    setInterval(syncWithBackend, 15000);
+    // 3-second polling - a middle ground. The sheet is heavier now (48 CF
+    // rules, validation, protection) so hammering this isn't free, but 3s
+    // still feels live if checked from a second screen/device. Local scans
+    // never wait on this anyway - it's just a background correction check.
+    setInterval(syncWithBackend, 3000);
+
+    // Resume any scans still queued from before a reload/backgrounding
+    if (scanQueue.length > 0) {
+      updateSyncStatus('idle');
+      processNextQueueItem();
+    }
 
     // DIRECT SCANNER LISTENER ENGINE
     var scanBuffer = '';
@@ -294,51 +304,49 @@
       if (navigator.vibrate) navigator.vibrate(30);
 
       // Instant local feedback - the ring bumps up right away, before the
-      // network even sees this scan. Never blocks on the backend.
+      // network even sees this scan. Never blocks on the backend, and
+      // survives a reload/lock since it's saved to localStorage immediately.
       scanQueue.push(cleanCode);
       persistQueue();
       renderDisplay(currentScanned + 1, currentTotal);
       updateSyncStatus('idle'); // shows "Queued (N)" via the branch above
+      processNextQueueItem();
     }
 
-    function flushQueue() {
-      if (isFlushingQueue || scanQueue.length === 0) return;
+    function processNextQueueItem() {
+      if (isProcessingQueue || scanQueue.length === 0) return;
 
-      isFlushingQueue = true;
-      var batch = scanQueue.slice(0, BATCH_SIZE);
+      isProcessingQueue = true;
+      var currentCode = scanQueue[0];
       updateSyncStatus('syncing');
 
-      callApi({ action: 'batchscan', codes: JSON.stringify(batch) })
+      callApi({ action: 'scan', code: currentCode })
         .then(function(result) {
-          isFlushingQueue = false;
+          // Only drop this one code once we KNOW it went through - self-paced:
+          // the next item never fires until this one is fully resolved, so
+          // the queue naturally matches however fast the sheet can actually go.
+          scanQueue.shift();
+          persistQueue();
+          isProcessingQueue = false;
 
-          if (result && result.success) {
-            // Only drop the codes that were actually part of this batch -
-            // anything enqueued locally DURING the network call stays put.
-            scanQueue.splice(0, batch.length);
-            persistQueue();
-
-            var failed = (result.results || []).filter(function(r) { return !r.success; });
-            if (failed.length > 0) {
-              updateSyncStatus('error', failed.length + " ticket(s) failed - check games entered");
-              setTimeout(function() { updateSyncStatus('idle'); }, 4000);
-            } else {
-              updateSyncStatus('idle');
-            }
+          if (!result || !result.success) {
+            var msg = (result && result.message) ? result.message : "Game Not Found";
+            updateSyncStatus('error', msg);
+            setTimeout(function() { updateSyncStatus('idle'); }, 3000);
           } else {
-            // Whole batch failed (server error) - leave it queued, retry next tick.
-            updateSyncStatus('error', "Sync failed — retrying...");
+            updateSyncStatus('idle');
           }
+
+          if (scanQueue.length > 0) processNextQueueItem();
         })
         .catch(function(err) {
-          isFlushingQueue = false;
+          // Genuine network failure - leave this code in place, retry it,
+          // don't advance and don't drop it.
+          isProcessingQueue = false;
           updateSyncStatus('error', "Network Error — Retrying...");
+          setTimeout(processNextQueueItem, 1500);
         });
     }
-
-    setInterval(flushQueue, FLUSH_INTERVAL_MS);
-    // Restore any scans that were still queued from before a reload/backgrounding
-    if (scanQueue.length > 0) updateSyncStatus('idle');
 
     function openPreview() {
       document.getElementById('previewModal').style.display = 'flex';
