@@ -207,11 +207,17 @@
     var syncDot = document.getElementById('syncDot');
 
     var currentScanned = 0;
-    var currentTotal = 42;
+    var currentTotal = 65; // matches the current 8-category sheet layout (was 42, stale)
     const CIRCUMFERENCE = 660;
 
-    var scanQueue = [];
-    var isProcessingQueue = false;
+    var scanQueue = JSON.parse(localStorage.getItem('pendingScanQueue') || '[]');
+    var isFlushingQueue = false;
+    var BATCH_SIZE = 25;
+    var FLUSH_INTERVAL_MS = 1200;
+
+    function persistQueue() {
+      localStorage.setItem('pendingScanQueue', JSON.stringify(scanQueue));
+    }
 
     function setCircleProgress(fraction) {
       var f = Math.max(0, Math.min(1, fraction));
@@ -234,7 +240,10 @@
         syncText.textContent = customMessage || "Backend Busy — Retrying...";
       } else if (state === 'syncing') {
         syncDot.className = "dot syncing";
-        syncText.textContent = customMessage || ("Queued (" + scanQueue.length + ")");
+        syncText.textContent = customMessage || ("Sending " + Math.min(scanQueue.length, BATCH_SIZE) + " (queued: " + scanQueue.length + ")");
+      } else if (scanQueue.length > 0) {
+        syncDot.className = "dot syncing";
+        syncText.textContent = "Queued (" + scanQueue.length + ") — sending soon";
       } else {
         syncDot.className = "dot idle";
         syncText.textContent = "Live Sync Active";
@@ -242,7 +251,7 @@
     }
 
     function syncWithBackend() {
-      if (!API_URL || isProcessingQueue) return;
+      if (!API_URL || isFlushingQueue) return;
       callApi({ action: 'progress' }).then(function(result) {
         if (result && result.success && scanQueue.length === 0) {
           renderDisplay(result.scannedToday || 0, result.totalGames || 42);
@@ -252,8 +261,12 @@
     }
 
     syncWithBackend();
-    // 5-second lightweight polling prevents flooding Apps Script
-    setInterval(syncWithBackend, 5000);
+    // Polling eased from 5s to 15s - the sheet now carries 48 conditional
+    // formatting rules, 11 data validations, sheet protection, and a
+    // VLOOKUP + rollover formula on every row, so each backend call costs
+    // more than it used to. Real-time-to-the-second sync isn't essential
+    // here; this trades a little freshness for a lot less backend load.
+    setInterval(syncWithBackend, 15000);
 
     // DIRECT SCANNER LISTENER ENGINE
     var scanBuffer = '';
@@ -280,44 +293,52 @@
 
       if (navigator.vibrate) navigator.vibrate(30);
 
+      // Instant local feedback - the ring bumps up right away, before the
+      // network even sees this scan. Never blocks on the backend.
       scanQueue.push(cleanCode);
-      updateSyncStatus('syncing');
-      processNextQueueItem();
+      persistQueue();
+      renderDisplay(currentScanned + 1, currentTotal);
+      updateSyncStatus('idle'); // shows "Queued (N)" via the branch above
     }
 
-    function processNextQueueItem() {
-      if (isProcessingQueue || scanQueue.length === 0) {
-        if (scanQueue.length === 0) updateSyncStatus('idle');
-        return;
-      }
+    function flushQueue() {
+      if (isFlushingQueue || scanQueue.length === 0) return;
 
-      isProcessingQueue = true;
-      var currentCode = scanQueue[0];
-      updateSyncStatus('syncing', "Queued (" + scanQueue.length + ")");
+      isFlushingQueue = true;
+      var batch = scanQueue.slice(0, BATCH_SIZE);
+      updateSyncStatus('syncing');
 
-      callApi({ action: 'scan', code: currentCode })
+      callApi({ action: 'batchscan', codes: JSON.stringify(batch) })
         .then(function(result) {
-          scanQueue.shift();
-          isProcessingQueue = false;
+          isFlushingQueue = false;
 
           if (result && result.success) {
-            updateSyncStatus('idle');
-            // Instant display update directly from the scan response payload
-            renderDisplay(currentScanned + 1, currentTotal);
-            if (scanQueue.length > 0) processNextQueueItem();
+            // Only drop the codes that were actually part of this batch -
+            // anything enqueued locally DURING the network call stays put.
+            scanQueue.splice(0, batch.length);
+            persistQueue();
+
+            var failed = (result.results || []).filter(function(r) { return !r.success; });
+            if (failed.length > 0) {
+              updateSyncStatus('error', failed.length + " ticket(s) failed - check games entered");
+              setTimeout(function() { updateSyncStatus('idle'); }, 4000);
+            } else {
+              updateSyncStatus('idle');
+            }
           } else {
-            var msg = (result && result.message) ? result.message : "Game Not Found";
-            updateSyncStatus('error', msg);
-            setTimeout(function() { updateSyncStatus('idle'); }, 3000);
-            if (scanQueue.length > 0) processNextQueueItem();
+            // Whole batch failed (server error) - leave it queued, retry next tick.
+            updateSyncStatus('error', "Sync failed — retrying...");
           }
         })
         .catch(function(err) {
-          isProcessingQueue = false;
+          isFlushingQueue = false;
           updateSyncStatus('error', "Network Error — Retrying...");
-          setTimeout(processNextQueueItem, 1500);
         });
     }
+
+    setInterval(flushQueue, FLUSH_INTERVAL_MS);
+    // Restore any scans that were still queued from before a reload/backgrounding
+    if (scanQueue.length > 0) updateSyncStatus('idle');
 
     function openPreview() {
       document.getElementById('previewModal').style.display = 'flex';
@@ -415,8 +436,11 @@
     }
 
     function handleEndDay(event) {
+      if (scanQueue.length > 0) {
+        alert("You still have " + scanQueue.length + " scan(s) waiting to sync. Wait a few seconds for \"Live Sync Active\" to show, then try End of Day again - this avoids losing any of them.");
+        return;
+      }
       if (!confirm('Close out the day? This archives all current progress.')) return;
-      scanQueue = [];
       updateSyncStatus('syncing', "Closing out day...");
 
       callApi({ action: 'endday' }).then(function(res) {
@@ -433,8 +457,11 @@
     }
 
     function handleReset(event) {
+      if (scanQueue.length > 0) {
+        alert("You still have " + scanQueue.length + " scan(s) waiting to sync. Wait a few seconds for \"Live Sync Active\" to show, then try Reset again - this avoids losing any of them.");
+        return;
+      }
       if (!confirm('Reset back to start of day?')) return;
-      scanQueue = [];
       updateSyncStatus('syncing', "Resetting day...");
 
       callApi({ action: 'reset' }).then(function(res) {
