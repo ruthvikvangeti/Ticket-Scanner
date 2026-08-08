@@ -1,541 +1,530 @@
-function doGet(e) {
-  var action = (e && e.parameter && e.parameter.action) ? e.parameter.action : "";
-  var callback = (e && e.parameter && e.parameter.callback) ? e.parameter.callback : "callback";
-  var result = {};
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Scratch-Off Scanner</title>
 
-  try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName("Daily Entry");
+  <!-- iOS Web App Configuration -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Ticket Scanner">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
 
-    if (!sheet) {
-      result = { success: false, message: "Tab 'Daily Entry' not found in spreadsheet!" };
-    } else if (action === "progress") {
-      result = getProgressData(sheet);
-    } else if (action === "gamemap") {
-      result = getGameMap(sheet);
-    } else if (action === "scan") {
-      var code = e.parameter.code || "";
-      result = processBarcodeScan(sheet, code);
-    } else if (action === "batchscan") {
-      var codesRaw = e.parameter.codes || "[]";
-      var codesArray;
-      try {
-        codesArray = JSON.parse(codesRaw);
-      } catch (parseErr) {
-        codesArray = [];
-      }
-      result = processBatchScan(sheet, codesArray);
-    } else if (action === "preview") {
-      result = getPreviewReport(sheet);
-    } else if (action === "endday") {
-      result = processEndDay(sheet);
-    } else if (action === "reset") {
-      result = processResetDay(sheet);
-    } else {
-      result = { success: false, message: "Invalid action parameter" };
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      height: 100%; width: 100%; margin: 0; padding: 0;
     }
-  } catch (err) {
-    result = { success: false, message: "Server Error: " + err.toString() };
-  }
-
-  var output = callback + "(" + JSON.stringify(result) + ")";
-  return ContentService.createTextOutput(output)
-    .setMimeType(ContentService.MimeType.JAVASCRIPT);
-}
-
-// ----------------------------------------------------
-// LAYOUT CONSTANTS
-// ----------------------------------------------------
-var DATA_RANGE_LAST_ROW = 74;
-
-var PRICE_BLOCKS = [
-  [2, 7],    // $1
-  [9, 17],   // $2
-  [19, 26],  // $3
-  [28, 38],  // $5
-  [40, 49],  // $10
-  [51, 60],  // $20
-  [62, 70],  // $30
-  [72, 73],  // $50
-];
-
-var CARRY_FORWARD_COLUMN = 10;     // Column J
-var BOOK_SNAPSHOT_COLUMN = 11;     // Column K (Morning Book Snapshot)
-var LIMIT_COLUMN = 9;              // Column I (Limit)
-var ACTIVE_START_COLUMN = 12;      // Column L (Active Start for math)
-var END_OF_DAY_EMAIL = "ruthvik.v18@gmail.com";
-
-// ----------------------------------------------------
-// HELPER: CLEAN BOOK NUMBER TO INTEGER
-// ----------------------------------------------------
-function cleanBookInt(val) {
-  if (val === null || val === undefined || val === "") return null;
-  var s = String(val).trim();
-  if (s.indexOf('.') !== -1) {
-    s = s.split('.')[0];
-  }
-  s = s.replace(/\D/g, '');
-  if (!s) return null;
-  return parseInt(s, 10);
-}
-
-// ----------------------------------------------------
-// FLEXIBLE LOTTERY BARCODE PARSER & WRITER
-// ----------------------------------------------------
-function processBarcodeScan(sheet, fullCode) {
-  var cleanCode = String(fullCode).replace(/\D/g, '').trim();
-
-  if (cleanCode.length < 10) {
-    return { success: false, message: "Invalid barcode length (" + cleanCode.length + " digits)" };
-  }
-
-  cleanCode = cleanCode.substring(0, 13);
-
-  var gameNum = String(parseInt(cleanCode.substring(0, 4), 10));
-  var bookSection = cleanCode.substring(4, 10);
-  var bookNum = bookSection.substring(bookSection.length - 3);
-  var ticketNum = parseInt(cleanCode.substring(10, 13), 10);
-
-  var gameColumn = sheet.getRange(2, 2, DATA_RANGE_LAST_ROW - 1, 1).getValues();
-  var targetRow = -1;
-
-  for (var i = 0; i < gameColumn.length; i++) {
-    var cellVal = String(gameColumn[i][0]).trim();
-    if (!cellVal) continue;
-
-    var sheetGame = String(parseInt(cellVal, 10));
-    if (sheetGame === gameNum) {
-      targetRow = i + 2;
-      break;
-    }
-  }
-
-  if (targetRow === -1) {
-    return { success: false, message: "Game #" + gameNum + " not found in sheet" };
-  }
-
-  var currentBookRaw = sheet.getRange(targetRow, 3).getValue();
-  var currentBookInt = cleanBookInt(currentBookRaw);
-  var scannedBookInt = cleanBookInt(bookNum);
-
-  // REAL BOOK CHANGE
-  if (currentBookInt !== null && currentBookInt !== scannedBookInt) {
-    carryForwardCompletedBook(sheet, targetRow);
-
-    sheet.getRange(targetRow, 3).setValue(bookNum);             // Col C: New Book #
-    sheet.getRange(targetRow, ACTIVE_START_COLUMN).setValue(0); // Col L: Resets to 0 for new book
-    sheet.getRange(targetRow, 6).setValue(ticketNum);           // Col F: End Ticket
-    // Col E (Opening Start) remains UNTOUCHED for visual paper record
-
-    return { success: true, action: "new_book", game: gameNum, book: bookNum, ticket: ticketNum };
-  }
-
-  // FIRST-EVER ASSIGNMENT IF BLANK
-  if (currentBookInt === null) {
-    sheet.getRange(targetRow, 3).setValue(bookNum);
-    if (sheet.getRange(targetRow, 5).getValue() === "") {
-      sheet.getRange(targetRow, 5).setValue(0);
-    }
-    if (sheet.getRange(targetRow, ACTIVE_START_COLUMN).getValue() === "") {
-      sheet.getRange(targetRow, ACTIVE_START_COLUMN).setValue(0);
-    }
-    sheet.getRange(targetRow, 6).setValue(ticketNum);
-    return { success: true, action: "updated_end", game: gameNum, ticket: ticketNum };
-  }
-
-  // SAME BOOK: SELF-HEALING BASELINE CHECK
-  var currentCarry = Number(sheet.getRange(targetRow, CARRY_FORWARD_COLUMN).getValue()) || 0;
-  var snapshotBookRaw = sheet.getRange(targetRow, BOOK_SNAPSHOT_COLUMN).getValue();
-  var snapshotBookInt = cleanBookInt(snapshotBookRaw);
-
-  var currentStartVal = sheet.getRange(targetRow, ACTIVE_START_COLUMN).getValue();
-  var currentStartNum = parseInt(currentStartVal, 10);
-  var openStartVal = sheet.getRange(targetRow, 5).getValue();
-  var openStartNum = parseInt(openStartVal, 10);
-
-  // Self-heal: If no book change occurred today (Carry J == 0) but Active Start L is 0/blank, re-sync L = E
-  if (currentCarry === 0 && (currentBookInt === snapshotBookInt || snapshotBookInt === null)) {
-    if (!isNaN(openStartNum) && (isNaN(currentStartNum) || currentStartNum === 0)) {
-      currentStartNum = openStartNum;
-      sheet.getRange(targetRow, ACTIVE_START_COLUMN).setValue(openStartNum);
-    }
-  }
-
-  var currentEndRaw = sheet.getRange(targetRow, 6).getValue();
-  var currentEndNum = (currentEndRaw === "" || currentEndRaw === null || currentEndRaw === undefined)
-    ? -1 : parseInt(currentEndRaw, 10);
-
-  // CASE 1: Ticket lower than Start -> Auto-correct Start
-  if (!isNaN(currentStartNum) && ticketNum < currentStartNum) {
-    var correctedStart = Math.min(currentStartNum, ticketNum);
-    var correctedEnd = Math.max(currentStartNum, ticketNum);
-
-    sheet.getRange(targetRow, 5).setValue(correctedStart);
-    sheet.getRange(targetRow, ACTIVE_START_COLUMN).setValue(correctedStart);
-    sheet.getRange(targetRow, 6).setValue(correctedEnd);
-
-    return {
-      success: true,
-      action: "auto_corrected_start",
-      game: gameNum,
-      ticket: ticketNum,
-      message: "Ticket " + ticketNum + " lower than Start (" + currentStartNum + ") - corrected."
-    };
-  }
-
-  // CASE 2: Duplicate or lower re-scan
-  if (ticketNum <= currentEndNum) {
-    return {
-      success: true,
-      action: "ignored_lower",
-      game: gameNum,
-      ticket: ticketNum,
-      message: "Ticket " + ticketNum + " <= current End (" + currentEndNum + ") - kept existing value."
-    };
-  }
-
-  // CASE 3: Normal forward progress
-  sheet.getRange(targetRow, 6).setValue(ticketNum);
-
-  return { success: true, action: "updated_end", game: gameNum, ticket: ticketNum };
-}
-
-// ----------------------------------------------------
-// CARRY-FORWARD OUTGOING BOOK'S SOLD COUNT
-// ----------------------------------------------------
-function carryForwardCompletedBook(sheet, row) {
-  var start = sheet.getRange(row, ACTIVE_START_COLUMN).getValue();
-  var openStart = sheet.getRange(row, 5).getValue();
-  var end = sheet.getRange(row, 6).getValue(); 
-  var carryCell = sheet.getRange(row, CARRY_FORWARD_COLUMN);
-  var currentCarry = Number(carryCell.getValue()) || 0;
-
-  var currentBookRaw = sheet.getRange(row, 3).getValue();
-  var snapshotBookRaw = sheet.getRange(row, BOOK_SNAPSHOT_COLUMN).getValue();
-  var c_int = cleanBookInt(currentBookRaw);
-  var k_int = cleanBookInt(snapshotBookRaw);
-
-  var startNum = parseInt(start, 10);
-
-  // SAFEGUARD: If no book change occurred today (J == 0) or Active Start is desynced, re-sync to Opening Start E
-  if (currentCarry === 0 && (c_int === k_int || c_int === null || k_int === null)) {
-    var openNum = parseInt(openStart, 10);
-    if (!isNaN(openNum)) startNum = openNum;
-  } else if (isNaN(startNum) || (startNum === 0 && currentCarry === 0)) {
-    var openNum = parseInt(openStart, 10);
-    if (!isNaN(openNum)) startNum = openNum;
-  }
-
-  var limit = sheet.getRange(row, LIMIT_COLUMN).getValue();
-  var limitNum = parseInt(limit, 10);
-
-  if (isNaN(limitNum) || isNaN(startNum)) return;
-
-  var completedTickets;
-  var endNum = (end === "" || end === null || end === undefined) ? NaN : parseInt(end, 10);
-
-  if (!isNaN(endNum) && endNum >= startNum && endNum < limitNum) {
-    completedTickets = Math.max(0, endNum - startNum);
-  } else {
-    completedTickets = Math.max(0, limitNum - startNum + 1);
-  }
-
-  carryCell.setValue(currentCarry + completedTickets);
-}
-
-// ----------------------------------------------------
-// BATCH SCAN
-// ----------------------------------------------------
-function processBatchScan(sheet, codesArray) {
-  if (!codesArray || codesArray.length === 0) return { success: true, results: [] };
-
-  var gameColumn = sheet.getRange(2, 2, DATA_RANGE_LAST_ROW - 1, 1).getValues();
-  var gameToRow = {};
-  for (var i = 0; i < gameColumn.length; i++) {
-    var cellVal = String(gameColumn[i][0]).trim();
-    if (!cellVal) continue;
-    var sheetGame = String(parseInt(cellVal, 10));
-    gameToRow[sheetGame] = i + 2;
-  }
-
-  var results = [];
-
-  codesArray.forEach(function (rawCode) {
-    var cleanCode = String(rawCode).replace(/\D/g, '').trim();
-    if (cleanCode.length < 10) {
-      results.push({ success: false, message: "Invalid barcode length", code: rawCode });
-      return;
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      padding: 10px 14px 16px 14px;
+      background: #ffffff; color: #0f172a;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      min-height: 100vh;
+      padding-top: max(8vh, env(safe-area-inset-top));
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
     }
 
-    cleanCode = cleanCode.substring(0, 13);
-    var gameNum = String(parseInt(cleanCode.substring(0, 4), 10));
-    var bookSection = cleanCode.substring(4, 10);
-    var bookNum = bookSection.substring(bookSection.length - 3);
-    var ticketNum = parseInt(cleanCode.substring(10, 13), 10);
-
-    var targetRow = gameToRow[gameNum];
-    if (!targetRow) {
-      results.push({ success: false, message: "Game #" + gameNum + " not found in sheet", code: rawCode });
-      return;
+    #mainCard {
+      width: 100%; max-width: 440px;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      background: #ffffff; border-radius: 28px; border: 1px solid #eef1f5;
+      padding: 28px 22px 24px 22px;
+      box-shadow: 0 20px 45px -12px rgba(15, 23, 42, 0.09), 0 2px 8px rgba(15, 23, 42, 0.04);
     }
 
-    var currentBookRaw = sheet.getRange(targetRow, 3).getValue();
-    var currentBookInt = cleanBookInt(currentBookRaw);
-    var scannedBookInt = cleanBookInt(bookNum);
+    .circle-container {
+      position: relative; width: 310px; height: 310px;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 4px; margin-bottom: 8px;
+    }
+    svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+    circle { fill: none; stroke-width: 14; stroke-linecap: round; }
+    .bg-ring { stroke: #f4f6f9; }
+    .progress-ring {
+      stroke: #00F0FF; stroke-dasharray: 660; stroke-dashoffset: 660;
+      opacity: 0;
+      transition: stroke-dashoffset 0.1s ease-out, opacity 0.1s ease-out;
+      filter: drop-shadow(0 6px 14px rgba(0, 240, 255, 0.35));
+    }
 
-    if (currentBookInt !== null && currentBookInt !== scannedBookInt) {
-      carryForwardCompletedBook(sheet, targetRow);
-      sheet.getRange(targetRow, 3).setValue(bookNum);
-      sheet.getRange(targetRow, ACTIVE_START_COLUMN).setValue(0);
-      sheet.getRange(targetRow, 6).setValue(ticketNum);
-      results.push({ success: true, action: "new_book", game: gameNum, book: bookNum, ticket: ticketNum });
-    } else {
-      if (currentBookInt === null) {
-        sheet.getRange(targetRow, 3).setValue(bookNum);
-        if (sheet.getRange(targetRow, 5).getValue() === "") sheet.getRange(targetRow, 5).setValue(0);
-        if (sheet.getRange(targetRow, ACTIVE_START_COLUMN).getValue() === "") sheet.getRange(targetRow, ACTIVE_START_COLUMN).setValue(0);
-        sheet.getRange(targetRow, 6).setValue(ticketNum);
-        results.push({ success: true, action: "updated_end", game: gameNum, ticket: ticketNum });
-      } else {
-        var currentEndRaw = sheet.getRange(targetRow, 6).getValue();
-        var currentEndNum = (currentEndRaw === "" || currentEndRaw === null || currentEndRaw === undefined)
-          ? -1 : parseInt(currentEndRaw, 10);
+    .ring-text { position: absolute; text-align: center; pointer-events: none; }
+    #countDisplay { font-size: 52px; font-weight: 800; color: #0f172a; letter-spacing: -1px; }
 
-        var currentStartVal = sheet.getRange(targetRow, ACTIVE_START_COLUMN).getValue();
-        var currentStartNum = parseInt(currentStartVal, 10);
+    #syncIndicator {
+      margin-top: 6px; margin-bottom: 18px;
+      font-size: 12px; font-weight: 600; color: #94a3b8;
+      letter-spacing: 0.2px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
 
-        if (!isNaN(currentStartNum) && ticketNum < currentStartNum) {
-          var correctedStart = Math.min(currentStartNum, ticketNum);
-          var correctedEnd = Math.max(currentStartNum, ticketNum);
-          sheet.getRange(targetRow, 5).setValue(correctedStart);
-          sheet.getRange(targetRow, ACTIVE_START_COLUMN).setValue(correctedStart);
-          sheet.getRange(targetRow, 6).setValue(correctedEnd);
-          results.push({ success: true, action: "auto_corrected_start", game: gameNum, ticket: ticketNum });
-        } else if (ticketNum <= currentEndNum) {
-          results.push({ success: true, action: "ignored_lower", game: gameNum, ticket: ticketNum });
-        } else {
-          sheet.getRange(targetRow, 6).setValue(ticketNum);
-          results.push({ success: true, action: "updated_end", game: gameNum, ticket: ticketNum });
+    .dot {
+      width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0;
+      transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .dot.idle {
+      background-color: #00F0FF;
+      box-shadow: 0 0 8px rgba(0, 240, 255, 0.85);
+      animation: none;
+    }
+
+    .dot.syncing {
+      background-color: #FF9500;
+      box-shadow: 0 0 8px rgba(255, 149, 0, 0.85);
+      animation: pulseOrange 0.9s infinite ease-in-out;
+    }
+
+    .dot.error {
+      background-color: #ef4444;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.85);
+      animation: pulseRed 0.9s infinite ease-in-out;
+    }
+
+    @keyframes pulseOrange {
+      0% { transform: scale(0.9); opacity: 0.7; }
+      50% { transform: scale(1.35); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.7; }
+    }
+
+    @keyframes pulseRed {
+      0% { transform: scale(0.9); opacity: 0.7; }
+      50% { transform: scale(1.35); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.7; }
+    }
+
+    .actionRow { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+    .btnGroup { display: flex; gap: 10px; }
+    button {
+      flex: 1; padding: 14px; font-size: 14px; font-weight: 700; color: white;
+      border: none; border-radius: 14px; cursor: pointer;
+      box-shadow: 0 2px 6px rgba(15,23,42,0.06);
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      letter-spacing: 0.1px;
+    }
+    #previewBtn {
+      background: #0f172a; color: #ffffff; font-size: 14px; padding: 14px;
+      box-shadow: 0 4px 12px rgba(15,23,42,0.18);
+    }
+    #endDayBtn { background: #00F0FF; color: #ffffff; font-weight: 700; }
+    #resetBtn { background: #ef4444; }
+    button:active { transform: scale(0.96); box-shadow: 0 1px 3px rgba(15,23,42,0.08); }
+
+    /* PREVIEW MODAL */
+    #previewModal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(4px);
+      z-index: 999; align-items: center; justify-content: center; padding: 16px;
+    }
+    .modal-card {
+      background: #ffffff; border-radius: 24px; width: 100%; max-width: 960px;
+      max-height: 92vh; display: flex; flex-direction: column; overflow: hidden;
+      border: 1px solid #e2e8f0; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+    }
+    .modal-header {
+      padding: 18px 24px; background: #0f172a; color: white;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1; background: #ffffff; color: #0f172a; }
+    .modal-footer { padding: 16px 24px; border-top: 1px solid #e2e8f0; display: flex; gap: 12px; background: #f8fafc; }
+
+    table.excel-full-sheet {
+      width: 100%; border-collapse: collapse; font-size: 12px; font-family: Calibri, Segoe UI, sans-serif;
+      border: 2px solid #000000; background: #ffffff; color: #000000;
+    }
+    table.excel-full-sheet th, table.excel-full-sheet td {
+      border: 1px solid #000000; padding: 4px 6px; text-align: center;
+    }
+    table.excel-full-sheet th {
+      background: #f1f5f9; font-weight: bold; color: #000000; font-size: 11px; text-transform: uppercase;
+      border-bottom: 2px solid #000000;
+    }
+    .excel-section-hdr td {
+      background: #e2e8f0; font-weight: bold; font-size: 12px; color: #000000; text-align: left !important;
+      padding-left: 10px; border-top: 2px solid #000000; border-bottom: 1px solid #000000;
+    }
+    .excel-subtotal td {
+      background: #f8fafc; font-weight: bold; color: #000000; border-top: 1px dashed #000000; border-bottom: 1px solid #000000;
+    }
+    .excel-grandtotal td {
+      background: #dbeafe; font-weight: bold; font-size: 13px; color: #000000; border-top: 2px solid #000000; border-bottom: 3px double #000000;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="mainCard">
+    <div class="circle-container">
+      <svg viewBox="0 0 230 230">
+        <circle class="bg-ring" cx="115" cy="115" r="105"></circle>
+        <circle class="progress-ring" id="ringFill" cx="115" cy="115" r="105"></circle>
+      </svg>
+      <div class="ring-text">
+        <div id="countDisplay">0 / 42</div>
+      </div>
+    </div>
+
+    <div id="syncIndicator"><span class="dot idle" id="syncDot"></span> <span id="syncText">Live Sync Active</span></div>
+
+    <div class="actionRow">
+      <div class="btnGroup">
+        <button id="endDayBtn" onclick="handleEndDay(event)">End of Day</button>
+        <button id="resetBtn" onclick="handleReset(event)">Reset Day</button>
+      </div>
+      <button id="previewBtn" onclick="openPreview()">Preview & Print</button>
+    </div>
+
+    <div id="failedScansPanel" style="display:none; margin-top:16px; text-align:left;">
+      <div id="failedScansList" style="font-size:15px; color:#0f172a; line-height:1.9;"></div>
+    </div>
+  </div>
+
+  <div id="previewModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 style="margin:0; font-size:16px;">Daily Ticket Sales Report</h3>
+        <button onclick="closePreview()" style="background:transparent; border:none; color:white; font-size:20px; cursor:pointer; padding:0;">✕</button>
+      </div>
+      <div class="modal-body" id="printArea">
+        <div id="modalReportContent">
+          <div style="text-align:center; padding:30px; color:#64748b;">Fetching live report data...</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button onclick="window.print()" style="background:#16a34a; color:white; font-weight:bold;">🖨️ Print Report</button>
+        <button onclick="closePreview()" style="background:#64748b; color:white;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var DIRECT_DEPLOY_URL = 'https://script.google.com/macros/s/AKfycbw_2b6OST3LlasY4TnL5mTh3Q7XoXchrCiAk-ywh7ToeYXWK3w2SdX38HJ2vYt01CzH/exec';
+    var API_URL = DIRECT_DEPLOY_URL;
+
+    var ringFill = document.getElementById('ringFill');
+    var countDisplay = document.getElementById('countDisplay');
+    var syncText = document.getElementById('syncText');
+    var syncDot = document.getElementById('syncDot');
+
+    var currentScanned = 0;
+    var currentTotal = 42; // 42 active games in sheet layout
+    const CIRCUMFERENCE = 660;
+
+    var scanQueue = JSON.parse(localStorage.getItem('pendingScanQueue') || '[]');
+    var isProcessingQueue = false;
+    var MAX_RETRIES = 1; // Retries once before flagging to prevent silent drops
+
+    var gameMap = JSON.parse(localStorage.getItem('gameMapCache') || '{}');
+    var failedScans = JSON.parse(localStorage.getItem('failedScans') || '[]');
+
+    function persistQueue() {
+      localStorage.setItem('pendingScanQueue', JSON.stringify(scanQueue));
+    }
+
+    function persistFailedScans() {
+      localStorage.setItem('failedScans', JSON.stringify(failedScans));
+      renderFailedScansPanel();
+    }
+
+    function fetchGameMap() {
+      callApi({ action: 'gamemap' }).then(function(result) {
+        if (result && result.success && result.gameMap) {
+          gameMap = result.gameMap;
+          localStorage.setItem('gameMapCache', JSON.stringify(gameMap));
         }
+      }).catch(function() {});
+    }
+
+    function renderFailedScansPanel() {
+      var panel = document.getElementById('failedScansPanel');
+      var list = document.getElementById('failedScansList');
+      if (!panel || !list) return;
+
+      if (failedScans.length === 0) {
+        panel.style.display = 'none';
+        return;
+      }
+      panel.style.display = 'block';
+      list.innerHTML = failedScans.map(function(item) {
+        var priceLabel = item.price ? ('$' + item.price) : '?';
+        return '<div>Game <b>' + item.game + '</b> &middot; ' + priceLabel + '</div>';
+      }).join('');
+    }
+
+    function removeFailedScanByGame(gameNum) {
+      var before = failedScans.length;
+      failedScans = failedScans.filter(function(item) { return item.game !== gameNum; });
+      if (failedScans.length !== before) persistFailedScans();
+    }
+
+    function setCircleProgress(fraction) {
+      var f = Math.max(0, Math.min(1, fraction));
+      var offset = CIRCUMFERENCE - (f * CIRCUMFERENCE);
+      ringFill.style.strokeDashoffset = offset;
+      ringFill.style.opacity = f <= 0 ? '0' : '1';
+      ringFill.style.stroke = f >= 1 ? '#2563eb' : '#00F0FF';
+    }
+
+    function renderDisplay(scanned, total) {
+      currentScanned = scanned;
+      currentTotal = total > 0 ? total : 42;
+      countDisplay.textContent = currentScanned + ' / ' + currentTotal;
+      setCircleProgress(currentTotal > 0 ? currentScanned / currentTotal : 0);
+    }
+
+    function updateSyncStatus(state, customMessage) {
+      if (state === 'error') {
+        syncDot.className = "dot error";
+        syncText.textContent = customMessage || "Backend Busy — Retrying...";
+      } else if (state === 'syncing') {
+        syncDot.className = "dot syncing";
+        syncText.textContent = customMessage || ("Queued (" + scanQueue.length + ")");
+      } else {
+        syncDot.className = "dot idle";
+        syncText.textContent = "Live Sync Active";
       }
     }
-  });
 
-  return { success: true, results: results };
-}
-
-// ----------------------------------------------------
-// GAME MAP & PROGRESS
-// ----------------------------------------------------
-function getGameMap(sheet) {
-  var data = sheet.getRange(2, 2, DATA_RANGE_LAST_ROW - 1, 3).getValues();
-  var map = {};
-  var currentPrice = null;
-
-  for (var i = 0; i < data.length; i++) {
-    var priceVal = data[i][2];
-    if (priceVal !== "" && priceVal !== null && !isNaN(parseFloat(priceVal))) {
-      currentPrice = parseFloat(priceVal);
+    function syncWithBackend() {
+      if (!API_URL || isProcessingQueue) return;
+      callApi({ action: 'progress' }).then(function(result) {
+        if (result && result.success && scanQueue.length === 0) {
+          renderDisplay(result.scannedToday || 0, result.totalGames || 42);
+          updateSyncStatus('idle');
+        }
+      }).catch(function(err) {});
     }
-    var gameVal = String(data[i][0]).trim();
-    if (gameVal && !isNaN(parseInt(gameVal, 10)) && currentPrice !== null) {
-      map[String(parseInt(gameVal, 10))] = currentPrice;
+
+    syncWithBackend();
+    setInterval(syncWithBackend, 3000);
+    fetchGameMap();
+    renderFailedScansPanel();
+
+    if (scanQueue.length > 0) {
+      updateSyncStatus('idle');
+      processNextQueueItem();
     }
-  }
 
-  return { success: true, gameMap: map };
-}
-
-function getProgressData(sheet) {
-  var data = sheet.getRange(2, 2, DATA_RANGE_LAST_ROW - 1, 5).getValues();
-  var totalGames = 0;
-  var scannedToday = 0;
-
-  for (var i = 0; i < data.length; i++) {
-    var cellVal = String(data[i][0]).trim();
-    if (cellVal !== "" && !isNaN(parseInt(cellVal, 10))) {
-      totalGames++;
-      var endTicket = data[i][4];
-      if (endTicket !== "" && endTicket !== null && endTicket !== undefined) {
-        scannedToday++;
+    // Direct Barcode Scanner Keystroke Reader
+    var scanBuffer = '';
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var codeToSubmit = scanBuffer.trim();
+        scanBuffer = '';
+        if (codeToSubmit.length >= 10) enqueueScan(codeToSubmit);
+        return;
       }
-    }
-  }
-
-  return { success: true, totalGames: totalGames, scannedToday: scannedToday };
-}
-
-// ----------------------------------------------------
-// PREVIEW REPORT
-// ----------------------------------------------------
-function getPreviewReport(sheet) {
-  var data = sheet.getRange(2, 1, DATA_RANGE_LAST_ROW - 1, 8).getValues();
-  var sections = [];
-  var currentSection = null;
-
-  var grandTotalTickets = 0;
-  var grandTotalValue = 0;
-  var currentPrice = 0;
-
-  for (var i = 0; i < data.length; i++) {
-    var row = data[i];
-    if (row[3] !== "" && row[3] !== null && !isNaN(parseFloat(row[3]))) {
-      currentPrice = parseFloat(row[3]);
-    }
-
-    var gameVal = String(row[1]).trim();
-    if (!gameVal || isNaN(parseInt(gameVal, 10))) continue;
-
-    if (!currentSection || currentSection.price !== currentPrice) {
-      if (currentSection) sections.push(currentSection);
-      currentSection = { price: currentPrice, rows: [], subtotalTickets: 0, subtotalValue: 0 };
-    }
-
-    var start = (row[4] !== "" && row[4] !== null) ? parseInt(row[4], 10) : 0;
-    var hasEnd = (row[5] !== "" && row[5] !== null && row[5] !== undefined);
-    var end = hasEnd ? parseInt(row[5], 10) : start;
-
-    var soldRaw = row[6];
-    var valueRaw = row[7];
-    var sold = (soldRaw !== "" && soldRaw !== null && !isNaN(soldRaw)) ? Number(soldRaw) : 0;
-    var value = (valueRaw !== "" && valueRaw !== null && !isNaN(valueRaw)) ? Number(valueRaw) : 0;
-
-    currentSection.rows.push({
-      game: String(parseInt(row[1], 10)),
-      book: String(row[2]),
-      start: start,
-      end: hasEnd ? end : "",
-      sold: sold,
-      value: value
+      if (e.key === 'Backspace') {
+        scanBuffer = scanBuffer.slice(0, -1);
+        return;
+      }
+      if (e.key.length === 1) {
+        scanBuffer += e.key;
+      }
     });
 
-    currentSection.subtotalTickets += sold;
-    currentSection.subtotalValue += value;
-    grandTotalTickets += sold;
-    grandTotalValue += value;
-  }
+    function enqueueScan(code) {
+      var cleanCode = String(code).replace(/\D/g, '').trim();
+      if (cleanCode.length < 10) return;
 
-  if (currentSection) sections.push(currentSection);
+      if (navigator.vibrate) navigator.vibrate(30);
 
-  var formattedDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MM/dd/yyyy");
-
-  return {
-    success: true,
-    report: {
-      date: formattedDate,
-      sections: sections,
-      grandTotalTickets: grandTotalTickets,
-      grandTotalValue: grandTotalValue
-    }
-  };
-}
-
-// ----------------------------------------------------
-// SNAPSHOTS & END OF DAY
-// ----------------------------------------------------
-function snapshotBookNumbers(sheet) {
-  PRICE_BLOCKS.forEach(function (block) {
-    var startRow = block[0];
-    var endRow = block[1];
-    var numRows = endRow - startRow + 1;
-    var bookValues = sheet.getRange(startRow, 3, numRows, 1).getValues();
-    sheet.getRange(startRow, BOOK_SNAPSHOT_COLUMN, numRows, 1).setValues(bookValues);
-  });
-}
-
-function processEndDay(sheet) {
-  var data = sheet.getRange(2, 1, DATA_RANGE_LAST_ROW - 1, 10).getValues();
-  var snapshot = [];
-
-  for (var i = 0; i < data.length; i++) {
-    var rowNum = i + 2;
-    var gameVal = String(data[i][1]).trim();
-    if (!gameVal || isNaN(parseInt(gameVal, 10))) continue;
-
-    var bookVal = data[i][2];
-    var startVal = data[i][4];
-    var endVal = data[i][5];
-
-    var checkpointStart = startVal;
-
-    if (endVal !== "" && endVal !== null && endVal !== undefined) {
-      sheet.getRange(rowNum, 5).setValue(endVal);                    // Col E
-      sheet.getRange(rowNum, ACTIVE_START_COLUMN).setValue(endVal);   // Col L
-      sheet.getRange(rowNum, 6).clearContent();                       // Col F
-      checkpointStart = endVal;
+      scanQueue.push({ code: cleanCode, attempts: 0 });
+      persistQueue();
+      renderDisplay(currentScanned + 1, currentTotal);
+      updateSyncStatus('idle');
+      processNextQueueItem();
     }
 
-    snapshot.push({ row: rowNum, book: bookVal, start: checkpointStart });
-    sheet.getRange(rowNum, CARRY_FORWARD_COLUMN).setValue(0);
-  }
+    function processNextQueueItem() {
+      if (isProcessingQueue || scanQueue.length === 0) return;
 
-  PropertiesService.getScriptProperties().setProperty('LAST_SNAPSHOT', JSON.stringify(snapshot));
-  snapshotBookNumbers(sheet);
+      isProcessingQueue = true;
+      var currentItem = scanQueue[0];
+      updateSyncStatus('syncing');
 
-  return { success: true };
-}
+      callApi({ action: 'scan', code: currentItem.code })
+        .then(function(result) {
+          scanQueue.shift();
+          persistQueue();
+          isProcessingQueue = false;
 
-// ----------------------------------------------------
-// FULL RESET UTILITY (CLEANS SHEET & UPDATES MEMORY SNAPSHOT)
-// ----------------------------------------------------
-function freshStartFullReset() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Daily Entry");
-  var fixedCount = 0;
-  var snapshot = [];
+          if (result && result.success) {
+            updateSyncStatus('idle');
+            if (result.game) removeFailedScanByGame(String(result.game));
+          } else {
+            var msg = (result && result.message) ? result.message : "Game Not Found";
+            updateSyncStatus('error', msg);
+            setTimeout(function() { updateSyncStatus('idle'); }, 3000);
+            flagAsNeedsRescan(currentItem.code);
+          }
 
-  PRICE_BLOCKS.forEach(function (block) {
-    var startRow = block[0];
-    var endRow = block[1];
+          if (scanQueue.length > 0) processNextQueueItem();
+        })
+        .catch(function(err) {
+          isProcessingQueue = false;
+          currentItem.attempts = (currentItem.attempts || 0) + 1;
 
-    for (var r = startRow; r <= endRow; r++) {
-      var gameVal = sheet.getRange(r, 2).getValue();
-      if (gameVal === "" || gameVal === null) continue;
+          if (currentItem.attempts > MAX_RETRIES) {
+            scanQueue.shift();
+            persistQueue();
+            flagAsNeedsRescan(currentItem.code);
+            updateSyncStatus('error', "Scan failed - added to re-scan list");
+            setTimeout(function() { updateSyncStatus('idle'); }, 3000);
+            if (scanQueue.length > 0) processNextQueueItem();
+          } else {
+            persistQueue();
+            updateSyncStatus('error', "Network Error — Retrying once...");
+            setTimeout(processNextQueueItem, 1500);
+          }
+        });
+    }
 
-      var bookVal = sheet.getRange(r, 3).getValue();
-      var openingStart = sheet.getRange(r, 5).getValue();
+    function flagAsNeedsRescan(rawCode) {
+      var gameNum = String(parseInt(rawCode.substring(0, 4), 10));
+      var price = gameMap[gameNum] || null;
 
-      sheet.getRange(r, CARRY_FORWARD_COLUMN).setValue(0); // Col J = 0
-
-      if (openingStart !== "" && openingStart !== null && openingStart !== undefined) {
-        sheet.getRange(r, ACTIVE_START_COLUMN).setValue(openingStart); // Col L = Col E
+      var alreadyFlagged = failedScans.some(function(item) { return item.game === gameNum; });
+      if (!alreadyFlagged) {
+        failedScans.push({ game: gameNum, price: price });
+        persistFailedScans();
       }
-
-      snapshot.push({ row: r, book: bookVal, start: openingStart });
-      fixedCount++;
     }
-  });
 
-  // Updates memory snapshot so "Reset Day" uses this fresh baseline
-  PropertiesService.getScriptProperties().setProperty('LAST_SNAPSHOT', JSON.stringify(snapshot));
-  snapshotBookNumbers(sheet);
+    function openPreview() {
+      document.getElementById('previewModal').style.display = 'flex';
+      document.getElementById('modalReportContent').innerHTML = '<div style="text-align:center; padding:30px; color:#64748b;">Fetching live report data...</div>';
 
-  SpreadsheetApp.getActiveSpreadsheet().toast("Fresh start applied - Carry-forward zeroed, memory snapshot updated.");
-}
-
-function processResetDay(sheet) {
-  var raw = PropertiesService.getScriptProperties().getProperty('LAST_SNAPSHOT');
-
-  if (!raw) {
-    var data = sheet.getRange(2, 1, DATA_RANGE_LAST_ROW - 1, 6).getValues();
-    for (var i = 0; i < data.length; i++) {
-      var rowNum = i + 2;
-      var gameVal = String(data[i][1]).trim();
-      if (!gameVal || isNaN(parseInt(gameVal, 10))) continue;
-      sheet.getRange(rowNum, 6).clearContent();
+      callApi({ action: 'preview' }).then(function(res) {
+        if (res && res.success && res.report) {
+          renderExcelStyleReportHTML(res.report);
+        } else {
+          document.getElementById('modalReportContent').innerHTML = '<div style="color:#ef4444; text-align:center;">Failed to load preview data.</div>';
+        }
+      }).catch(function(err) {
+        document.getElementById('modalReportContent').innerHTML = '<div style="color:#ef4444; text-align:center;">Error connecting to server.</div>';
+      });
     }
-    snapshotBookNumbers(sheet);
-    return { success: true, message: "No End of Day snapshot yet - only End Ticket was cleared." };
-  }
 
-  var snapshot = JSON.parse(raw);
-  snapshot.forEach(function (entry) {
-    sheet.getRange(entry.row, 3).setValue(entry.book);
-    sheet.getRange(entry.row, 5).setValue(entry.start);
-    sheet.getRange(entry.row, ACTIVE_START_COLUMN).setValue(entry.start);
-    sheet.getRange(entry.row, 6).clearContent();
-    sheet.getRange(entry.row, CARRY_FORWARD_COLUMN).setValue(0);
-  });
+    function closePreview() {
+      document.getElementById('previewModal').style.display = 'none';
+    }
 
-  snapshotBookNumbers(sheet);
-  return { success: true };
-}
+    function renderExcelStyleReportHTML(rpt) {
+      var html = '<div style="text-align:center; font-weight:bold; font-size:14px; margin-bottom:10px; font-family:Calibri, sans-serif;">DAILY ENTRY REPORT — ' + rpt.date + '</div>';
+
+      html += '<table class="excel-full-sheet"><thead><tr>' +
+        '<th>Game #</th><th>Book #</th><th>Start Ticket</th><th>End Ticket</th><th>Tickets Sold</th><th>Total Value ($)</th>' +
+      '</tr></thead><tbody>';
+
+      rpt.sections.forEach(function(sec) {
+        html += '<tr class="excel-section-hdr"><td colspan="6">$' + sec.price + ' GAMES</td></tr>';
+
+        sec.rows.forEach(function(r) {
+          html += '<tr>' +
+            '<td><b>' + r.game + '</b></td>' +
+            '<td>' + r.book + '</td>' +
+            '<td>' + r.start + '</td>' +
+            '<td>' + r.end + '</td>' +
+            '<td>' + r.sold + '</td>' +
+            '<td>$' + Math.round(r.value) + '</td>' +
+          '</tr>';
+        });
+
+        html += '<tr class="excel-subtotal">' +
+          '<td colspan="4" style="text-align:right;"><b>SUBTOTAL ($' + sec.price + ')</b></td>' +
+          '<td><b>' + sec.subtotalTickets + '</b></td>' +
+          '<td><b>$' + Math.round(sec.subtotalValue) + '</b></td>' +
+        '</tr>';
+      });
+
+      html += '<tr class="excel-grandtotal">' +
+        '<td colspan="4" style="text-align:right;"><b>GRAND TOTAL</b></td>' +
+        '<td><b>' + rpt.grandTotalTickets + '</b></td>' +
+        '<td><b>$' + Math.round(rpt.grandTotalValue) + '</b></td>' +
+      '</tr>';
+
+      html += '</tbody></table>';
+      document.getElementById('modalReportContent').innerHTML = html;
+    }
+
+    var jsonpCounter = 0;
+    function callApi(params) {
+      return new Promise(function(resolve, reject) {
+        if (!API_URL) return reject('no url');
+        var callbackName = 'jsonpCallback_' + (jsonpCounter++) + '_' + Date.now();
+
+        var timeoutId = setTimeout(function() {
+          cleanup();
+          reject(new Error('Timeout'));
+        }, 12000);
+
+        function cleanup() {
+          clearTimeout(timeoutId);
+          delete window[callbackName];
+          var el = document.getElementById(callbackName);
+          if (el && el.parentNode) el.parentNode.removeChild(el);
+        }
+
+        window[callbackName] = function(result) {
+          cleanup();
+          resolve(result);
+        };
+
+        params.callback = callbackName;
+        params._t = Date.now();
+        
+        var url = API_URL + '?' + new URLSearchParams(params).toString();
+        var script = document.createElement('script');
+        script.id = callbackName;
+        script.src = url;
+        script.onerror = function() {
+          cleanup();
+          reject(new Error('Script error'));
+        };
+        document.body.appendChild(script);
+      });
+    }
+
+    function handleEndDay(event) {
+      if (!confirm('Close out the day? This archives all current progress.')) return;
+      scanQueue = [];
+      updateSyncStatus('syncing', "Closing out day...");
+
+      callApi({ action: 'endday' }).then(function(res) {
+        if (res && res.success) {
+          renderDisplay(0, currentTotal);
+          updateSyncStatus('idle');
+          syncWithBackend();
+        } else {
+          updateSyncStatus('error', "End of Day Failed");
+        }
+      }).catch(function(err) {
+        updateSyncStatus('error', "Connection Error — Retry End Day");
+      });
+    }
+
+    function handleReset(event) {
+      if (!confirm('Reset back to start of day?')) return;
+      scanQueue = [];
+      updateSyncStatus('syncing', "Resetting day...");
+
+      callApi({ action: 'reset' }).then(function(res) {
+        if (res && res.success) {
+          renderDisplay(0, currentTotal);
+          updateSyncStatus('idle');
+          syncWithBackend();
+        } else {
+          updateSyncStatus('error', "Reset Failed");
+        }
+      }).catch(function(err) {
+        updateSyncStatus('error', "Connection Error — Retry Reset");
+      });
+    }
+  </script>
+</body>
+</html>
