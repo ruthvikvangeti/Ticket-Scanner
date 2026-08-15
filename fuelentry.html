@@ -1,11 +1,815 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
   <title>Fuel Daily Close</title>
+
+  <link rel="stylesheet" href="styles.css">
+  <script src="api.js"></script>
+
+  <style>
+    .section-title {
+      font-size: 20px;
+      margin-bottom: 14px;
+    }
+
+    .section-subtitle {
+      margin-top: -6px;
+      margin-bottom: 18px;
+      color: #64748b;
+      font-size: 14px;
+    }
+
+    .grade-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr 1fr;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .grade-grid.header {
+      font-weight: 700;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .upload-box {
+      border: 2px dashed #cbd5e1;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 18px;
+      background: #f8fafc;
+    }
+
+    .upload-box input[type="file"] {
+      margin-top: 8px;
+    }
+
+    .upload-note {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 8px;
+    }
+
+    .delivery-fields {
+      display: none;
+      margin-top: 16px;
+    }
+
+    .status-box {
+      padding: 12px;
+      border-radius: 12px;
+      margin-top: 14px;
+      display: none;
+      font-weight: 600;
+    }
+
+    .status-success {
+      display: block;
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .status-error {
+      display: block;
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .status-info {
+      display: block;
+      background: #e0f2fe;
+      color: #075985;
+    }
+
+    .result-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+    }
+
+    .result-table th,
+    .result-table td {
+      padding: 10px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: right;
+    }
+
+    .result-table th:first-child,
+    .result-table td:first-child {
+      text-align: left;
+    }
+
+    .action-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .full-width-btn {
+      width: 100%;
+    }
+
+    @media (max-width: 700px) {
+      .grade-grid {
+        grid-template-columns: 1fr;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 14px;
+      }
+
+      .grade-grid.header {
+        display: none;
+      }
+    }
+  </style>
 </head>
+
 <body>
-  <h1>Fuel Daily Close</h1>
-  <p>Manual fuel entry page coming soon.</p>
+
+<div class="page">
+
+  <!-- BUSINESS DATE -->
+  <div class="card">
+    <h1>Fuel Daily Close</h1>
+
+    <p class="section-subtitle">
+      Enter daily fuel information manually and attach the supporting reports.
+    </p>
+
+    <div class="form-group">
+      <label for="businessDate">Business Date</label>
+      <input type="date" id="businessDate">
+    </div>
+  </div>
+
+
+  <!-- PASSPORT -->
+  <div class="card">
+    <h2 class="section-title">Passport Fuel Sales</h2>
+
+    <div class="upload-box">
+      <label for="passportFile">
+        Passport Store Close Report
+      </label>
+
+      <input
+        type="file"
+        id="passportFile"
+        accept=".pdf,image/*"
+      >
+
+      <div class="upload-note">
+        PDF, camera photo, or image file accepted.
+      </div>
+    </div>
+
+    <div class="grade-grid header">
+      <div>Grade</div>
+      <div>Gallons Sold</div>
+      <div>Sales $</div>
+    </div>
+
+    <div class="grade-grid">
+      <strong>87 Regular</strong>
+
+      <input
+        type="number"
+        step="0.001"
+        id="regularGallons"
+        placeholder="Gallons"
+      >
+
+      <input
+        type="number"
+        step="0.01"
+        id="regularSales"
+        placeholder="Sales $"
+      >
+    </div>
+
+    <div class="grade-grid">
+      <strong>89 Midgrade</strong>
+
+      <input
+        type="number"
+        step="0.001"
+        id="midGallons"
+        placeholder="Gallons"
+      >
+
+      <input
+        type="number"
+        step="0.01"
+        id="midSales"
+        placeholder="Sales $"
+      >
+    </div>
+
+    <div class="grade-grid">
+      <strong>93 Premium / V-Power</strong>
+
+      <input
+        type="number"
+        step="0.001"
+        id="premiumGallons"
+        placeholder="Gallons"
+      >
+
+      <input
+        type="number"
+        step="0.01"
+        id="premiumSales"
+        placeholder="Sales $"
+      >
+    </div>
+
+    <div class="grade-grid">
+      <strong>Diesel</strong>
+
+      <input
+        type="number"
+        step="0.001"
+        id="dieselGallons"
+        placeholder="Gallons"
+      >
+
+      <input
+        type="number"
+        step="0.01"
+        id="dieselSales"
+        placeholder="Sales $"
+      >
+    </div>
+  </div>
+
+
+  <!-- VEEDER ROOT -->
+  <div class="card">
+    <h2 class="section-title">Veeder-Root Inventory</h2>
+
+    <div class="upload-box">
+      <label for="veederFile">
+        Veeder-Root Report
+      </label>
+
+      <input
+        type="file"
+        id="veederFile"
+        accept=".pdf,image/*"
+      >
+
+      <div class="upload-note">
+        You can upload a PDF or take/select a photograph.
+      </div>
+    </div>
+
+    <div class="grade-grid header">
+      <div>Tank / Product</div>
+      <div>Beginning Inventory</div>
+      <div>Ending Inventory</div>
+    </div>
+
+    <div class="grade-grid">
+      <strong>Regular</strong>
+
+      <input
+        type="number"
+        step="0.001"
+        id="regularBegin"
+        placeholder="Beginning gal"
+      >
+
+      <input
+        type="number"
+        step="0.001"
+        id="regularEnd"
+        placeholder="Ending gal"
+      >
+    </div>
+
+    <div class="grade-grid">
+      <strong>Premium</strong>
+
+      <input
+        type="number"
+        step="0.001"
+        id="premiumBegin"
+        placeholder="Beginning gal"
+      >
+
+      <input
+        type="number"
+        step="0.001"
+        id="premiumEnd"
+        placeholder="Ending gal"
+      >
+    </div>
+
+    <div class="grade-grid">
+      <strong>Diesel</strong>
+
+      <input
+        type="number"
+        step="0.001"
+        id="dieselBegin"
+        placeholder="Beginning gal"
+      >
+
+      <input
+        type="number"
+        step="0.001"
+        id="dieselEnd"
+        placeholder="Ending gal"
+      >
+    </div>
+  </div>
+
+
+  <!-- DELIVERY -->
+  <div class="card">
+    <h2 class="section-title">Fuel Delivery</h2>
+
+    <div class="form-group">
+      <label for="deliveryToday">
+        Was fuel delivered during this business day?
+      </label>
+
+      <select
+        id="deliveryToday"
+        onchange="toggleDelivery()"
+      >
+        <option value="no">No</option>
+        <option value="yes">Yes</option>
+      </select>
+    </div>
+
+    <div
+      id="deliveryFields"
+      class="delivery-fields"
+    >
+
+      <div class="grid-2">
+
+        <div class="form-group">
+          <label for="deliveryProduct">Product</label>
+
+          <select id="deliveryProduct">
+            <option value="">Select product</option>
+            <option value="87 Regular">87 Regular</option>
+            <option value="93 Premium">93 Premium</option>
+            <option value="Diesel">Diesel</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="deliveryGallons">
+            Gallons Delivered
+          </label>
+
+          <input
+            type="number"
+            step="0.001"
+            id="deliveryGallons"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="deliveryDate">
+            Delivery Date
+          </label>
+
+          <input
+            type="date"
+            id="deliveryDate"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="deliveryTime">
+            Delivery Time
+          </label>
+
+          <input
+            type="time"
+            id="deliveryTime"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="supplier">
+            Supplier
+          </label>
+
+          <input
+            type="text"
+            id="supplier"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="bolNumber">
+            BOL Number
+          </label>
+
+          <input
+            type="text"
+            id="bolNumber"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="deliveryCost">
+            Delivery Cost / Gallon
+          </label>
+
+          <input
+            type="number"
+            step="0.0001"
+            id="deliveryCost"
+          >
+        </div>
+
+      </div>
+
+      <div class="upload-box">
+        <label for="bolFile">
+          BOL / Delivery Document
+        </label>
+
+        <input
+          type="file"
+          id="bolFile"
+          accept=".pdf,image/*"
+        >
+
+        <div class="upload-note">
+          PDF or photograph accepted.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- SUPPLIER PRICING -->
+  <div class="card">
+    <h2 class="section-title">Supplier Fuel Cost</h2>
+
+    <div class="grid-2">
+
+      <div class="form-group">
+        <label for="regularCost">
+          Regular Cost / Gallon
+        </label>
+
+        <input
+          type="number"
+          step="0.0001"
+          id="regularCost"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="premiumCost">
+          Premium Cost / Gallon
+        </label>
+
+        <input
+          type="number"
+          step="0.0001"
+          id="premiumCost"
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="dieselCost">
+          Diesel Cost / Gallon
+        </label>
+
+        <input
+          type="number"
+          step="0.0001"
+          id="dieselCost"
+        >
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- RECONCILE -->
+  <div class="card">
+
+    <div class="action-bar">
+      <button
+        class="primary-btn full-width-btn"
+        onclick="reconcileFuel()"
+      >
+        Reconcile Fuel
+      </button>
+    </div>
+
+    <div
+      id="statusBox"
+      class="status-box"
+    ></div>
+
+    <div id="results"></div>
+
+  </div>
+
+</div>
+
+
+<script>
+
+function toggleDelivery() {
+
+  const value =
+    document.getElementById("deliveryToday").value;
+
+  document.getElementById("deliveryFields").style.display =
+    value === "yes"
+      ? "block"
+      : "none";
+}
+
+
+function num(id) {
+
+  return Number(
+    document.getElementById(id).value || 0
+  );
+}
+
+
+function reconcileFuel() {
+
+  const businessDate =
+    document.getElementById("businessDate").value;
+
+  if (!businessDate) {
+
+    showStatus(
+      "Please select the business date.",
+      "error"
+    );
+
+    return;
+  }
+
+
+  const payload = {
+
+    action: "reconcilefuel",
+
+    businessDate: businessDate,
+
+    regularGallons:
+      num("regularGallons"),
+
+    regularSales:
+      num("regularSales"),
+
+    midGallons:
+      num("midGallons"),
+
+    midSales:
+      num("midSales"),
+
+    premiumGallons:
+      num("premiumGallons"),
+
+    premiumSales:
+      num("premiumSales"),
+
+    dieselGallons:
+      num("dieselGallons"),
+
+    dieselSales:
+      num("dieselSales"),
+
+    regularBegin:
+      num("regularBegin"),
+
+    regularEnd:
+      num("regularEnd"),
+
+    premiumBegin:
+      num("premiumBegin"),
+
+    premiumEnd:
+      num("premiumEnd"),
+
+    dieselBegin:
+      num("dieselBegin"),
+
+    dieselEnd:
+      num("dieselEnd"),
+
+    deliveryToday:
+      document.getElementById(
+        "deliveryToday"
+      ).value,
+
+    deliveryProduct:
+      document.getElementById(
+        "deliveryProduct"
+      ).value,
+
+    deliveryGallons:
+      num("deliveryGallons"),
+
+    deliveryDate:
+      document.getElementById(
+        "deliveryDate"
+      ).value,
+
+    deliveryTime:
+      document.getElementById(
+        "deliveryTime"
+      ).value,
+
+    supplier:
+      document.getElementById(
+        "supplier"
+      ).value,
+
+    bolNumber:
+      document.getElementById(
+        "bolNumber"
+      ).value,
+
+    deliveryCost:
+      num("deliveryCost"),
+
+    regularCost:
+      num("regularCost"),
+
+    premiumCost:
+      num("premiumCost"),
+
+    dieselCost:
+      num("dieselCost")
+  };
+
+
+  showStatus(
+    "Sending fuel data to backend...",
+    "info"
+  );
+
+
+  apiCall(payload)
+
+    .then(function(result) {
+
+      if (!result || !result.success) {
+
+        showStatus(
+          result && result.message
+            ? result.message
+            : "Fuel reconciliation failed.",
+          "error"
+        );
+
+        return;
+      }
+
+
+      showStatus(
+        "Fuel reconciliation completed.",
+        "success"
+      );
+
+
+      renderResults(result);
+
+    })
+
+    .catch(function(error) {
+
+      console.error(error);
+
+      showStatus(
+        "Unable to connect to the backend.",
+        "error"
+      );
+
+    });
+
+}
+
+
+function showStatus(message, type) {
+
+  const box =
+    document.getElementById("statusBox");
+
+  box.className =
+    "status-box status-" + type;
+
+  box.textContent =
+    message;
+}
+
+
+function renderResults(result) {
+
+  if (!result.rows) {
+    return;
+  }
+
+
+  let html = `
+
+    <h2 style="margin-top:24px;">
+      Reconciliation Results
+    </h2>
+
+    <table class="result-table">
+
+      <thead>
+
+        <tr>
+          <th>Grade</th>
+          <th>Tank Movement</th>
+          <th>POS Gallons</th>
+          <th>Variance</th>
+          <th>Gross Profit</th>
+        </tr>
+
+      </thead>
+
+      <tbody>
+
+  `;
+
+
+  result.rows.forEach(function(row) {
+
+    html += `
+
+      <tr>
+
+        <td>
+          ${row.grade}
+        </td>
+
+        <td>
+          ${Number(
+            row.tankMovement
+          ).toFixed(2)}
+        </td>
+
+        <td>
+          ${Number(
+            row.posGallons
+          ).toFixed(2)}
+        </td>
+
+        <td>
+          ${Number(
+            row.variance
+          ).toFixed(2)}
+        </td>
+
+        <td>
+          $${Number(
+            row.grossProfit
+          ).toFixed(2)}
+        </td>
+
+      </tr>
+
+    `;
+
+  });
+
+
+  html += `
+
+      </tbody>
+
+    </table>
+
+  `;
+
+
+  document.getElementById(
+    "results"
+  ).innerHTML = html;
+
+}
+
+</script>
+
 </body>
 </html>
