@@ -22,7 +22,6 @@
     }
   </script>
   
-  <link rel="preconnect" href="https://script.google.com" crossorigin>
 
   <style>
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -425,6 +424,12 @@
   </div>
 
   <script>
+    // Network guard:
+    // Only contact the Apps Script backend when this file is actually running
+    // from GitHub Pages. This prevents ChatGPT/local HTML preview from asking
+    // for network access just because the file was opened for inspection.
+    var NETWORK_ENABLED = /(^|\.)github\.io$/i.test(window.location.hostname);
+
     var ringFill = document.getElementById('ringFill');
     var countDisplay = document.getElementById('countDisplay');
     var syncText = document.getElementById('syncText');
@@ -460,6 +465,22 @@
 
     var gameMap = JSON.parse(localStorage.getItem('gameMapCache') || '{}');
     var failedScans = JSON.parse(localStorage.getItem('failedScansV8') || '[]');
+
+    // Barcodes already accepted/seen during the current business day.
+    // This gives immediate duplicate feedback on the frontend instead of
+    // optimistically increasing the counter for a repeated ticket.
+    var acceptedScanCodes = JSON.parse(localStorage.getItem('acceptedScanCodesV12') || '[]');
+
+    function persistAcceptedScanCodes() {
+      localStorage.setItem('acceptedScanCodesV12', JSON.stringify(acceptedScanCodes));
+    }
+
+    function rememberAcceptedCode(code) {
+      if (acceptedScanCodes.indexOf(code) === -1) {
+        acceptedScanCodes.push(code);
+        persistAcceptedScanCodes();
+      }
+    }
 
     function persistQueue() {
       localStorage.setItem('pendingScanQueueV8', JSON.stringify(scanQueue));
@@ -594,7 +615,12 @@
       } else {
         completionShown = false;
         countDisplay.classList.remove('complete');
-        countDisplay.textContent = currentScanned + ' / ' + currentTotal;
+
+        // IMPORTANT: show only backend-confirmed progress. The old frontend
+        // displayed an optimistic local count, so scanning the same ticket
+        // multiple times could briefly show 2/43, 3/43, etc. even when the
+        // spreadsheet correctly counted only one unique scan.
+        countDisplay.textContent = confirmedScanned + ' / ' + currentTotal;
         document.querySelector('.circle-container').classList.remove('complete-animation');
       }
 
@@ -632,8 +658,9 @@
       callApi({ action: 'bootstrap' }).then(function(result) {
         if (result && result.success) {
           backendBaselineScanned = Number(result.scannedToday) || 0;
-          var directCount = Math.max(currentScanned, backendBaselineScanned);
-          var isComplete = renderDisplay(directCount, result.totalGames || 65, backendBaselineScanned, true);
+          confirmedScanned = backendBaselineScanned;
+          currentScanned = backendBaselineScanned;
+          var isComplete = renderDisplay(confirmedScanned, result.totalGames || 65, confirmedScanned, true);
           if (isComplete) updateSyncStatus('idle', 'All scans confirmed by backend');
           gameMap = result.gameMap || gameMap;
           localStorage.setItem('gameMapCache', JSON.stringify(gameMap));
@@ -650,16 +677,21 @@
       callApi({ action: 'progress' }).then(function(result) {
         if (result && result.success && scanQueue.length === 0 && deferredQueue.length === 0) {
           confirmedScanned = Number(result.scannedToday) || 0;
-          currentScanned = Math.max(currentScanned, confirmedScanned);
-          var isComplete = renderDisplay(currentScanned, result.totalGames || 65, confirmedScanned, true);
+          currentScanned = confirmedScanned;
+          var isComplete = renderDisplay(confirmedScanned, result.totalGames || 65, confirmedScanned, true);
           updateSyncStatus('idle', isComplete ? 'All scans confirmed by backend' : 'Scanner Ready — Scan Now');
           if (currentScanned >= 35) refreshMissingGames(true);
         }
       }).catch(function(err) {});
     }
 
-    initializeScanner();
-    setInterval(syncWithBackend, 10000);
+    if (NETWORK_ENABLED) {
+      initializeScanner();
+      setInterval(syncWithBackend, 10000);
+    } else {
+      armScanner();
+      updateSyncStatus('idle', 'Preview Mode — network disabled');
+    }
     renderFailedScansPanel();
 
     window.addEventListener('pageshow', function() {
@@ -716,13 +748,24 @@
 
       if (navigator.vibrate) navigator.vibrate(30);
 
-      // Suppress an accidental second Enter / duplicate scanner transmission
-      // while the same barcode is already awaiting confirmation.
+      // Reject a barcode that was already confirmed during this business day.
+      // This is immediate UI feedback and avoids sending an obvious duplicate
+      // to the backend again.
+      if (acceptedScanCodes.indexOf(cleanCode) !== -1) {
+        var duplicateDetails = parseBarcodeDetails(cleanCode);
+        updateSyncStatus('idle', 'Duplicate ignored — already scanned');
+        showBottomNotice('warning', 'Game ' + duplicateDetails.game + ' already scanned — not counted', 1800);
+        renderDisplay(confirmedScanned, currentTotal, confirmedScanned, true);
+        return;
+      }
+
+      // Also suppress a duplicate while the same barcode is still pending.
       var alreadyQueued = scanQueue.concat(deferredQueue).some(function(item) {
         return item.code === cleanCode;
       });
       if (alreadyQueued) {
-        updateSyncStatus('error', 'Duplicate scan already waiting');
+        updateSyncStatus('idle', 'Duplicate ignored — scan already pending');
+        showBottomNotice('warning', 'Duplicate scan ignored — waiting for confirmation', 1600);
         return;
       }
 
@@ -732,9 +775,10 @@
         attempts: 0,
         queuedAt: Date.now()
       });
-      sessionInputCount += 1;
       persistQueue();
-      renderDisplay(currentScanned + 1, currentTotal, confirmedScanned, false);
+
+      // Do NOT increase the visible progress counter here.
+      // Wait until the backend confirms this scan counted as a new unique item.
       updateSyncStatus('syncing', 'Sending scan...');
 
       clearTimeout(scannerIdleTimer);
@@ -780,16 +824,30 @@
           if (result && result.success) {
             removeFailedScanByCode(currentItem.code);
             var confirmedDetails = parseBarcodeDetails(currentItem.code);
+
+            // Remember successful responses locally so an immediate repeat of
+            // the same barcode can be stopped before another network request.
+            rememberAcceptedCode(currentItem.code);
+
             if (result.progressCounted === true) {
               confirmedScanned = Math.min(currentTotal, confirmedScanned + 1);
-              renderDisplay(currentScanned, currentTotal, confirmedScanned, false);
+              currentScanned = confirmedScanned;
+              renderDisplay(confirmedScanned, currentTotal, confirmedScanned, false);
               pulseConfirmedRing();
+              showBottomNotice('success', 'Game ' + confirmedDetails.game + ' confirmed', 900);
+            } else {
+              // The backend accepted the request but did not count it as new.
+              // Treat this as a duplicate/already-recorded scan in the UI.
+              currentScanned = confirmedScanned;
+              renderDisplay(confirmedScanned, currentTotal, confirmedScanned, true);
+              updateSyncStatus('idle', 'Duplicate ignored — already counted');
+              showBottomNotice('warning', 'Game ' + confirmedDetails.game + ' already scanned — not counted', 1800);
             }
+
             missingGames = missingGames.filter(function(item) {
               return String(item.game) !== String(confirmedDetails.game);
             });
-            showBottomNotice('success', 'Game ' + confirmedDetails.game + ' confirmed', 900);
-            if (currentScanned >= 35 && (confirmedScanned === 35 || confirmedScanned % 5 === 0)) {
+            if (confirmedScanned >= 35 && (confirmedScanned === 35 || confirmedScanned % 5 === 0)) {
               refreshMissingGames(false);
             }
           } else {
@@ -940,6 +998,10 @@
 
     function callApi(params) {
       return new Promise(function(resolve, reject) {
+        if (!NETWORK_ENABLED) {
+          reject(new Error('Network disabled outside GitHub Pages'));
+          return;
+        }
         const callbackName = '__ticketScannerCb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
         const script = document.createElement('script');
         const timeout = setTimeout(function() {
@@ -985,6 +1047,8 @@
         if (res && res.success) {
           failedScans = [];
           persistFailedScans();
+          acceptedScanCodes = [];
+          persistAcceptedScanCodes();
           backendBaselineScanned = 0;
           sessionInputCount = 0;
           confirmedScanned = 0;
@@ -1012,6 +1076,8 @@
         if (res && res.success) {
           failedScans = [];
           persistFailedScans();
+          acceptedScanCodes = [];
+          persistAcceptedScanCodes();
           backendBaselineScanned = 0;
           sessionInputCount = 0;
           confirmedScanned = 0;
