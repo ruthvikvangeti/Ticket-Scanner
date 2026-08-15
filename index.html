@@ -1,8 +1,9 @@
 <!DOCTYPE html>
+<!-- GitHub Pages mobile frontend V11 — connected to business Apps Script backend -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Scratch-Off Scanner</title>
 
   <!-- iOS Web App Configuration -->
@@ -10,6 +11,16 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Ticket Scanner">
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="theme-color" content="#ffffff">
+  <script>
+    // Google Apps Script's outer wrapper sometimes reports a desktop-width
+    // viewport on iPhone. Detect the actual device so the app can size itself
+    // by screen percentage instead of relying only on a media query.
+    if (/iPhone|iPod/i.test(navigator.userAgent)) {
+      document.documentElement.classList.add('iphone-device');
+    }
+  </script>
   
   <link rel="preconnect" href="https://script.google.com" crossorigin>
 
@@ -17,6 +28,8 @@
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
       height: 100%; width: 100%; margin: 0; padding: 0;
+      -webkit-text-size-adjust: 100%;
+      overscroll-behavior: none;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
@@ -24,8 +37,11 @@
       background: #ffffff; color: #0f172a;
       display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
       min-height: 100vh;
+      min-height: 100dvh;
       padding-top: max(8vh, env(safe-area-inset-top));
       padding-bottom: max(20px, env(safe-area-inset-bottom));
+      overflow-x: hidden;
+      touch-action: manipulation;
     }
 
     #mainCard {
@@ -47,12 +63,30 @@
     .progress-ring {
       stroke: #00F0FF; stroke-dasharray: 660; stroke-dashoffset: 660;
       opacity: 0;
-      transition: stroke-dashoffset 0.1s ease-out, opacity 0.1s ease-out;
+      transition: stroke-dashoffset 0.58s cubic-bezier(0.22, 0.78, 0.25, 1), opacity 0.25s ease-out, stroke 0.45s ease, filter 0.45s ease;
       filter: drop-shadow(0 6px 14px rgba(0, 240, 255, 0.35));
+    }
+    .progress-ring.confirm-step { animation: confirmGlow 0.5s ease-out; }
+
+    @keyframes confirmGlow {
+      0% { filter: drop-shadow(0 4px 8px rgba(0, 240, 255, 0.24)); }
+      50% { filter: drop-shadow(0 7px 18px rgba(0, 240, 255, 0.62)); }
+      100% { filter: drop-shadow(0 6px 14px rgba(0, 240, 255, 0.35)); }
     }
 
     .ring-text { position: absolute; text-align: center; pointer-events: none; }
     #countDisplay { font-size: 52px; font-weight: 800; color: #0f172a; letter-spacing: -1px; }
+    #countDisplay.complete { letter-spacing: 0; }
+    #countDisplay .complete-title { display: block; font-size: 30px; line-height: 1.05; color: #16a34a; }
+    #countDisplay .complete-count { display: block; margin-top: 8px; font-size: 13px; font-weight: 700; color: #64748b; letter-spacing: 0; }
+    .circle-container.complete-animation { animation: completePop 0.75s ease-out; }
+
+    @keyframes completePop {
+      0% { transform: scale(1); }
+      38% { transform: scale(1.055); }
+      68% { transform: scale(0.985); }
+      100% { transform: scale(1); }
+    }
 
     #syncIndicator {
       margin-top: 6px; margin-bottom: 18px;
@@ -152,9 +186,190 @@
     .excel-grandtotal td {
       background: #dbeafe; font-weight: bold; font-size: 13px; color: #000000; border-top: 2px solid #000000; border-bottom: 3px double #000000;
     }
+
+    /* TRUE PHONE LAYOUT — fills an iPhone screen instead of looking like a
+       narrow desktop card. Safe-area padding protects the notch and Home bar. */
+    @media (max-width: 600px) {
+      html, body { background: #ffffff; }
+      body {
+        display: block;
+        padding: 0;
+        min-height: 100dvh;
+      }
+      #mainCard {
+        width: 100%; max-width: none; min-height: 100dvh;
+        border: 0; border-radius: 0; box-shadow: none;
+        padding:
+          calc(14px + env(safe-area-inset-top))
+          16px
+          calc(18px + env(safe-area-inset-bottom));
+        justify-content: flex-start;
+      }
+      .circle-container {
+        width: clamp(220px, 68vw, 278px);
+        height: clamp(220px, 68vw, 278px);
+        margin-top: 2px;
+        margin-bottom: 2px;
+      }
+      #countDisplay { font-size: clamp(42px, 12vw, 50px); }
+      #syncIndicator {
+        width: 100%; min-height: 28px;
+        margin: 4px 0 12px;
+        font-size: 13px;
+      }
+      .actionRow { gap: 10px; }
+      .btnGroup { gap: 10px; }
+      button {
+        min-height: 52px; padding: 14px 12px;
+        border-radius: 14px; font-size: 16px;
+        touch-action: manipulation;
+      }
+      #previewBtn { min-height: 52px; font-size: 16px; }
+      #failedScansPanel { width: 100%; }
+      #previewModal {
+        padding: 0;
+        align-items: stretch;
+      }
+      .modal-card {
+        max-height: 100dvh; height: 100dvh;
+        border: 0; border-radius: 0;
+      }
+      .modal-header {
+        padding: calc(14px + env(safe-area-inset-top)) 16px 14px;
+      }
+      .modal-body {
+        padding: 12px;
+        -webkit-overflow-scrolling: touch;
+      }
+      .modal-footer {
+        padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+      }
+      .modal-footer button { min-width: 0; font-size: 14px; }
+      table.excel-full-sheet { min-width: 680px; }
+      #printArea { overflow-x: auto; }
+    }
+
+    @media (max-width: 600px) and (max-height: 700px) {
+      .circle-container { width: 205px; height: 205px; }
+      #countDisplay { font-size: 40px; }
+      #syncIndicator { margin-bottom: 8px; }
+      button, #previewBtn { min-height: 48px; padding-top: 11px; padding-bottom: 11px; }
+    }
+
+    @media (display-mode: standalone) {
+      body { background: #ffffff; }
+      #mainCard { min-height: 100dvh; }
+    }
+
+    /* Apps Script iPhone wrapper override. The wrapper can expose an internal
+       width near 980px, so ordinary max-width:600px rules do not activate.
+       vw sizing still maps correctly to the visible iPhone screen. */
+    html.iphone-device, html.iphone-device body {
+      width: 100%; min-height: 100vh; margin: 0;
+      background: #ffffff;
+      overflow-x: hidden;
+    }
+    html.iphone-device body {
+      display: block;
+      padding: 0;
+    }
+    html.iphone-device #mainCard {
+      width: 100vw; max-width: none; min-height: 100vh;
+      margin: 0; border: 0; border-radius: 0; box-shadow: none;
+      padding: 5vw 5vw 6vw;
+      justify-content: flex-start;
+    }
+    html.iphone-device .circle-container {
+      width: 72vw; height: 72vw;
+      margin: 10vw auto 2vw;
+    }
+    html.iphone-device #countDisplay {
+      font-size: 10vw;
+      letter-spacing: -0.3vw;
+    }
+    html.iphone-device #countDisplay .complete-title { font-size: 7.4vw; }
+    html.iphone-device #countDisplay .complete-count { margin-top: 2vw; font-size: 3.2vw; }
+    html.iphone-device #syncIndicator {
+      width: 100%; min-height: 7vw;
+      margin: 1vw 0 3vw;
+      gap: 2vw;
+      font-size: 3.4vw;
+    }
+    html.iphone-device .dot {
+      width: 2.4vw; height: 2.4vw;
+    }
+    html.iphone-device .actionRow,
+    html.iphone-device .btnGroup {
+      gap: 2.5vw;
+    }
+    html.iphone-device button,
+    html.iphone-device #previewBtn {
+      min-height: 13vw;
+      padding: 3vw;
+      border-radius: 3.5vw;
+      font-size: 4vw;
+    }
+    html.iphone-device #failedScansPanel {
+      width: 100%;
+      margin-top: 4vw !important;
+      font-size: 3.7vw;
+    }
+    html.iphone-device #previewModal {
+      padding: 0;
+      align-items: stretch;
+    }
+    html.iphone-device .modal-card {
+      width: 100vw; max-width: none; height: 100vh; max-height: 100vh;
+      border: 0; border-radius: 0;
+    }
+    html.iphone-device .modal-header { padding: 4vw; font-size: 4vw; }
+    html.iphone-device .modal-body { padding: 3vw; -webkit-overflow-scrolling: touch; }
+    html.iphone-device .modal-footer { padding: 3vw; }
+    html.iphone-device .modal-footer button { min-height: 11vw; font-size: 3.5vw; }
+
+    #scannerCapture {
+      position: fixed;
+      left: 1px; top: 1px;
+      width: 2px; height: 2px;
+      padding: 0; border: 0; outline: 0;
+      opacity: 0.01;
+      color: transparent; background: transparent;
+      caret-color: transparent;
+      font-size: 16px;
+      pointer-events: none;
+    }
+
+    #bottomActivity {
+      position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom));
+      transform: translate(-50%, 18px);
+      width: min(420px, calc(100% - 28px)); min-height: 48px;
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 14px; border-radius: 15px;
+      background: #0f172a; color: #ffffff;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+      opacity: 0; visibility: hidden; pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.22, 0.78, 0.25, 1), background-color 0.2s ease;
+      z-index: 850; font-size: 13px; font-weight: 700;
+    }
+    #bottomActivity.show { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+    #bottomActivity.success { background: #0f766e; }
+    #bottomActivity.warning { background: #b45309; }
+    #bottomActivity.error { background: #b91c1c; }
+    #bottomActivity .notice-icon { flex: 0 0 auto; font-size: 17px; }
+    #bottomActivity .notice-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    html.iphone-device #bottomActivity {
+      left: 5vw; bottom: 4vw; transform: translateY(5vw);
+      width: 90vw; min-height: 12vw; padding: 2.8vw 3.4vw;
+      border-radius: 3.8vw; font-size: 3.5vw;
+    }
+    html.iphone-device #bottomActivity.show { transform: translateY(0); }
   </style>
 </head>
 <body>
+
+  <input id="scannerCapture" type="text" inputmode="none" enterkeyhint="done"
+    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+    autofocus aria-label="Barcode scanner receiver">
 
   <div id="mainCard">
     <div class="circle-container">
@@ -167,7 +382,7 @@
       </div>
     </div>
 
-    <div id="syncIndicator"><span class="dot idle" id="syncDot"></span> <span id="syncText">Live Sync Active</span></div>
+    <div id="syncIndicator"><span class="dot idle" id="syncDot"></span> <span id="syncText">Scanner Ready — Scan Now</span></div>
 
     <div class="actionRow">
       <div class="btnGroup">
@@ -178,8 +393,17 @@
     </div>
 
     <div id="failedScansPanel" style="display:none; margin-top:16px; text-align:left;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px;">
+        <b style="color:#b91c1c;">Needs Re-scan</b>
+        <button onclick="retryDeferredNow()" style="width:auto; padding:7px 11px; background:#f59e0b; color:#111827; font-size:12px;">Retry Now</button>
+      </div>
       <div id="failedScansList" style="font-size:15px; color:#0f172a; line-height:1.9;"></div>
     </div>
+  </div>
+
+  <div id="bottomActivity" role="status" aria-live="polite" aria-atomic="true">
+    <span class="notice-icon" id="bottomNoticeIcon">✓</span>
+    <span class="notice-text" id="bottomNoticeText"></span>
   </div>
 
   <div id="previewModal">
@@ -201,32 +425,49 @@
   </div>
 
   <script>
-    var DIRECT_DEPLOY_URL = 'https://script.google.com/macros/s/AKfycbwb6_5XmCUPVfJ_y6IEVQ8s4CQa7MmoGKZWzV3DaTs6xsu1r7uQpG9cr4erWEnQPyhf/exec';
-    
-    var API_URL = DIRECT_DEPLOY_URL;
-
     var ringFill = document.getElementById('ringFill');
     var countDisplay = document.getElementById('countDisplay');
     var syncText = document.getElementById('syncText');
     var syncDot = document.getElementById('syncDot');
+    var scannerCapture = document.getElementById('scannerCapture');
+    var bottomActivity = document.getElementById('bottomActivity');
+    var bottomNoticeIcon = document.getElementById('bottomNoticeIcon');
+    var bottomNoticeText = document.getElementById('bottomNoticeText');
 
     var currentScanned = 0;
+    var confirmedScanned = 0;
+    var backendBaselineScanned = 0;
+    var sessionInputCount = 0;
     var currentTotal = 65; // matches the current 8-category sheet layout
+    var completionShown = false;
+    var noticeTimer = null;
+    var noticeLockedUntil = 0;
+    var missingGames = [];
+    var missingIndex = 0;
+    var missingRequestInFlight = false;
+    var lastMissingConfirmedValue = -1;
     const CIRCUMFERENCE = 660;
 
-    var scanQueue = JSON.parse(localStorage.getItem('pendingScanQueue') || '[]');
+    var scanQueue = JSON.parse(localStorage.getItem('pendingScanQueueV8') || '[]');
+    var deferredQueue = JSON.parse(localStorage.getItem('deferredScanQueueV8') || '[]');
+    sessionInputCount = scanQueue.length + deferredQueue.length;
+    currentScanned = sessionInputCount;
     var isProcessingQueue = false;
-    var MAX_RETRIES = 1; // retry exactly once, then give up and flag it instead of hammering forever
+    var scannerIdleTimer = null;
+    var retryCycleActive = false;
+    var MAX_DEFERRED_ATTEMPTS = 2;
+    var IDLE_RETRY_DELAY_MS = 5000;
 
     var gameMap = JSON.parse(localStorage.getItem('gameMapCache') || '{}');
-    var failedScans = JSON.parse(localStorage.getItem('failedScans') || '[]'); // [{game, price}]
+    var failedScans = JSON.parse(localStorage.getItem('failedScansV8') || '[]');
 
     function persistQueue() {
-      localStorage.setItem('pendingScanQueue', JSON.stringify(scanQueue));
+      localStorage.setItem('pendingScanQueueV8', JSON.stringify(scanQueue));
+      localStorage.setItem('deferredScanQueueV8', JSON.stringify(deferredQueue));
     }
 
     function persistFailedScans() {
-      localStorage.setItem('failedScans', JSON.stringify(failedScans));
+      localStorage.setItem('failedScansV8', JSON.stringify(failedScans));
       renderFailedScansPanel();
     }
 
@@ -250,30 +491,115 @@
       }
       panel.style.display = 'block';
       list.innerHTML = failedScans.map(function(item) {
-        var priceLabel = item.price ? ('$' + item.price) : '?';
-        return '<div>Game <b>' + item.game + '</b> &middot; ' + priceLabel + '</div>';
+        var priceLabel = item.price !== null && item.price !== undefined ? ('$' + item.price) : 'Value unknown';
+        return '<div style="padding:7px 0; border-bottom:1px solid #e2e8f0;">' +
+          'Game <b>' + item.game + '</b> &middot; Book <b>' + item.book + '</b> &middot; ' +
+          'Ticket <b>' + item.ticket + '</b> &middot; <b>' + priceLabel + '</b>' +
+          (item.reason ? '<div style="font-size:12px; color:#64748b; line-height:1.4;">' + escapeHtml(item.reason) + '</div>' : '') +
+        '</div>';
       }).join('');
     }
 
-    function removeFailedScanByGame(gameNum) {
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>'"]/g, function(ch) {
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[ch];
+      });
+    }
+
+    function showBottomNotice(type, message, duration) {
+      clearTimeout(noticeTimer);
+      bottomActivity.className = '';
+      bottomActivity.classList.add(type || 'success', 'show');
+      bottomNoticeIcon.textContent = type === 'error' ? '!' : (type === 'warning' ? '•' : '✓');
+      bottomNoticeText.textContent = message;
+      noticeLockedUntil = Date.now() + (duration || 1100);
+
+      noticeTimer = setTimeout(function() {
+        bottomActivity.classList.remove('show');
+      }, duration || 1100);
+    }
+
+    function pulseConfirmedRing() {
+      ringFill.classList.remove('confirm-step');
+      void ringFill.getBoundingClientRect();
+      ringFill.classList.add('confirm-step');
+    }
+
+    function refreshMissingGames(force) {
+      if (currentScanned < 35 || missingRequestInFlight) return;
+      if (!force && confirmedScanned === lastMissingConfirmedValue) return;
+
+      missingRequestInFlight = true;
+      lastMissingConfirmedValue = confirmedScanned;
+      callApi({ action: 'missing' }).then(function(result) {
+        missingRequestInFlight = false;
+        if (result && result.success) {
+          missingGames = result.missingGames || [];
+          missingIndex = 0;
+          if (missingGames.length === 0 && confirmedScanned < currentTotal) {
+            showBottomNotice('success', 'No missing games found', 1300);
+          }
+        }
+      }).catch(function() {
+        missingRequestInFlight = false;
+      });
+    }
+
+    function rotateMissingNotice() {
+      if (currentScanned < 35 || missingGames.length === 0 || Date.now() < noticeLockedUntil) return;
+      if (missingIndex >= missingGames.length) missingIndex = 0;
+      var item = missingGames[missingIndex++];
+      var priceLabel = item.price !== null && item.price !== undefined ? ('$' + item.price) : 'Value unavailable';
+      showBottomNotice('warning', 'Missing scan · Game ' + item.game + ' · ' + priceLabel, 1800);
+    }
+
+    setInterval(rotateMissingNotice, 2300);
+
+    function removeFailedScanByCode(code) {
       var before = failedScans.length;
-      failedScans = failedScans.filter(function(item) { return item.game !== gameNum; });
+      failedScans = failedScans.filter(function(item) { return item.code !== code; });
       if (failedScans.length !== before) persistFailedScans();
     }
 
-    function setCircleProgress(fraction) {
+    function setCircleProgress(fraction, confirmedComplete) {
       var f = Math.max(0, Math.min(1, fraction));
       var offset = CIRCUMFERENCE - (f * CIRCUMFERENCE);
       ringFill.style.strokeDashoffset = offset;
       ringFill.style.opacity = f <= 0 ? '0' : '1';
-      ringFill.style.stroke = f >= 1 ? '#2563eb' : '#00F0FF';
+      ringFill.style.stroke = confirmedComplete ? '#22c55e' : '#00F0FF';
+      ringFill.style.filter = confirmedComplete
+        ? 'drop-shadow(0 6px 16px rgba(34, 197, 94, 0.48))'
+        : 'drop-shadow(0 6px 14px rgba(0, 240, 255, 0.35))';
     }
 
-    function renderDisplay(scanned, total) {
-      currentScanned = scanned;
+    function renderDisplay(directScanned, total, backendConfirmedCount, authoritativeSnapshot) {
+      currentScanned = Math.max(0, Number(directScanned) || 0);
       currentTotal = total > 0 ? total : 42;
-      countDisplay.textContent = currentScanned + ' / ' + currentTotal;
-      setCircleProgress(currentTotal > 0 ? currentScanned / currentTotal : 0);
+      currentScanned = Math.min(currentTotal, currentScanned);
+      confirmedScanned = Math.max(0, Math.min(currentTotal, Number(backendConfirmedCount) || 0));
+      var confirmedComplete = Boolean(authoritativeSnapshot && currentTotal > 0 && confirmedScanned >= currentTotal);
+
+      if (confirmedComplete) {
+        countDisplay.classList.add('complete');
+        countDisplay.innerHTML = '<span class="complete-title">Scan Complete</span>' +
+          '<span class="complete-count">' + confirmedScanned + ' / ' + currentTotal + ' confirmed</span>';
+
+        if (!completionShown) {
+          var circle = document.querySelector('.circle-container');
+          circle.classList.remove('complete-animation');
+          void circle.offsetWidth;
+          circle.classList.add('complete-animation');
+        }
+        completionShown = true;
+      } else {
+        completionShown = false;
+        countDisplay.classList.remove('complete');
+        countDisplay.textContent = currentScanned + ' / ' + currentTotal;
+        document.querySelector('.circle-container').classList.remove('complete-animation');
+      }
+
+      setCircleProgress(currentTotal > 0 ? confirmedScanned / currentTotal : 0, confirmedComplete);
+      return confirmedComplete;
     }
 
     function updateSyncStatus(state, customMessage) {
@@ -285,27 +611,74 @@
         syncText.textContent = customMessage || ("Queued (" + scanQueue.length + ")");
       } else {
         syncDot.className = "dot idle";
-        syncText.textContent = "Live Sync Active";
+        syncText.textContent = customMessage || "Scanner Ready — Scan Now";
       }
     }
 
+    function armScanner() {
+      if (!scannerCapture) return;
+      try {
+        scannerCapture.focus({ preventScroll: true });
+      } catch (focusError) {
+        scannerCapture.focus();
+      }
+    }
+
+    function initializeScanner() {
+      // Focus first. Accepting a barcode must not wait for spreadsheet data.
+      armScanner();
+      updateSyncStatus('idle', 'Scanner Ready — Scan Now');
+
+      callApi({ action: 'bootstrap' }).then(function(result) {
+        if (result && result.success) {
+          backendBaselineScanned = Number(result.scannedToday) || 0;
+          var directCount = Math.max(currentScanned, backendBaselineScanned);
+          var isComplete = renderDisplay(directCount, result.totalGames || 65, backendBaselineScanned, true);
+          if (isComplete) updateSyncStatus('idle', 'All scans confirmed by backend');
+          gameMap = result.gameMap || gameMap;
+          localStorage.setItem('gameMapCache', JSON.stringify(gameMap));
+        }
+        armScanner();
+      }).catch(function() {
+        // Cached data and the local queue remain usable; scanning stays armed.
+        armScanner();
+      });
+    }
+
     function syncWithBackend() {
-      if (!API_URL || isProcessingQueue) return;
+      if (isProcessingQueue) return;
       callApi({ action: 'progress' }).then(function(result) {
-        if (result && result.success && scanQueue.length === 0) {
-          renderDisplay(result.scannedToday || 0, result.totalGames || 65);
-          updateSyncStatus('idle');
+        if (result && result.success && scanQueue.length === 0 && deferredQueue.length === 0) {
+          confirmedScanned = Number(result.scannedToday) || 0;
+          currentScanned = Math.max(currentScanned, confirmedScanned);
+          var isComplete = renderDisplay(currentScanned, result.totalGames || 65, confirmedScanned, true);
+          updateSyncStatus('idle', isComplete ? 'All scans confirmed by backend' : 'Scanner Ready — Scan Now');
+          if (currentScanned >= 35) refreshMissingGames(true);
         }
       }).catch(function(err) {});
     }
 
-    syncWithBackend();
-    setInterval(syncWithBackend, 3000);
-    fetchGameMap();
+    initializeScanner();
+    setInterval(syncWithBackend, 10000);
     renderFailedScansPanel();
 
+    window.addEventListener('pageshow', function() {
+      setTimeout(armScanner, 0);
+      setTimeout(armScanner, 250);
+    });
+    window.addEventListener('load', function() {
+      setTimeout(armScanner, 0);
+      setTimeout(armScanner, 250);
+    });
+    document.addEventListener('visibilitychange', function() {
+      if (!document.hidden) {
+        setTimeout(armScanner, 0);
+        setTimeout(armScanner, 250);
+      }
+    });
+
     // Resume any scans still queued from before a reload/backgrounding
-    if (scanQueue.length > 0) {
+    if (scanQueue.length > 0 || deferredQueue.length > 0) {
       updateSyncStatus('idle');
       processNextQueueItem();
     }
@@ -313,11 +686,13 @@
     // DIRECT SCANNER LISTENER ENGINE
     var scanBuffer = '';
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
         var codeToSubmit = scanBuffer.trim();
         scanBuffer = '';
+        if (scannerCapture) scannerCapture.value = '';
         if (codeToSubmit.length >= 10) enqueueScan(codeToSubmit);
+        armScanner();
         return;
       }
       if (e.key === 'Backspace') {
@@ -329,80 +704,177 @@
       }
     });
 
+    // Re-arm after any button/modal interaction so the next barcode never
+    // requires the user to tap the page first.
+    document.addEventListener('click', function() {
+      setTimeout(armScanner, 50);
+    }, true);
+
     function enqueueScan(code) {
       var cleanCode = String(code).replace(/\D/g, '').trim();
       if (cleanCode.length < 10) return;
 
       if (navigator.vibrate) navigator.vibrate(30);
 
-      scanQueue.push({ code: cleanCode, attempts: 0 });
+      // Suppress an accidental second Enter / duplicate scanner transmission
+      // while the same barcode is already awaiting confirmation.
+      var alreadyQueued = scanQueue.concat(deferredQueue).some(function(item) {
+        return item.code === cleanCode;
+      });
+      if (alreadyQueued) {
+        updateSyncStatus('error', 'Duplicate scan already waiting');
+        return;
+      }
+
+      scanQueue.push({
+        code: cleanCode,
+        requestId: makeRequestId(),
+        attempts: 0,
+        queuedAt: Date.now()
+      });
+      sessionInputCount += 1;
       persistQueue();
-      renderDisplay(currentScanned + 1, currentTotal);
-      updateSyncStatus('idle');
+      renderDisplay(currentScanned + 1, currentTotal, confirmedScanned, false);
+      updateSyncStatus('syncing', 'Sending scan...');
+
+      clearTimeout(scannerIdleTimer);
+      scannerIdleTimer = setTimeout(function() {
+        retryDeferredNow();
+      }, IDLE_RETRY_DELAY_MS);
+
       processNextQueueItem();
     }
 
+    function makeRequestId() {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return 'scan-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    }
+
     function processNextQueueItem() {
-      if (isProcessingQueue || scanQueue.length === 0) return;
+      if (isProcessingQueue) return;
+
+      if (scanQueue.length === 0) {
+        if (deferredQueue.length > 0) {
+          updateSyncStatus('error', deferredQueue.length + ' deferred — retrying after scanner is idle');
+          clearTimeout(scannerIdleTimer);
+          scannerIdleTimer = setTimeout(retryDeferredNow, IDLE_RETRY_DELAY_MS);
+        } else {
+          updateSyncStatus('idle');
+          // The queue is empty. Ask the backend for the authoritative count
+          // immediately so completion never depends on an optimistic client count.
+          syncWithBackend();
+        }
+        return;
+      }
 
       isProcessingQueue = true;
       var currentItem = scanQueue[0];
-      updateSyncStatus('syncing');
+      updateSyncStatus('syncing', 'Sending 1 scan · ' + Math.max(0, scanQueue.length - 1) + ' waiting');
 
-      callApi({ action: 'scan', code: currentItem.code })
+      callApi({ action: 'scan', code: currentItem.code, requestId: currentItem.requestId })
         .then(function(result) {
           scanQueue.shift();
           persistQueue();
           isProcessingQueue = false;
 
           if (result && result.success) {
-            updateSyncStatus('idle');
-            // If this game was previously on the "needs re-scan" list, a
-            // successful scan clears it automatically.
-            if (result.game) removeFailedScanByGame(String(result.game));
+            removeFailedScanByCode(currentItem.code);
+            var confirmedDetails = parseBarcodeDetails(currentItem.code);
+            if (result.progressCounted === true) {
+              confirmedScanned = Math.min(currentTotal, confirmedScanned + 1);
+              renderDisplay(currentScanned, currentTotal, confirmedScanned, false);
+              pulseConfirmedRing();
+            }
+            missingGames = missingGames.filter(function(item) {
+              return String(item.game) !== String(confirmedDetails.game);
+            });
+            showBottomNotice('success', 'Game ' + confirmedDetails.game + ' confirmed', 900);
+            if (currentScanned >= 35 && (confirmedScanned === 35 || confirmedScanned % 5 === 0)) {
+              refreshMissingGames(false);
+            }
           } else {
-            // A response came back but the scan itself failed logically
-            // (e.g. "Game not found") - not a network issue, don't retry,
-            // just flag it and move on.
             var msg = (result && result.message) ? result.message : "Game Not Found";
-            updateSyncStatus('error', msg);
-            setTimeout(function() { updateSyncStatus('idle'); }, 3000);
-            flagAsNeedsRescan(currentItem.code);
+            if (/busy|try again|temporar/i.test(msg)) {
+              currentItem.attempts = (currentItem.attempts || 0) + 1;
+              deferredQueue.push(currentItem);
+              persistQueue();
+              updateSyncStatus('error', 'Backend busy — scan deferred');
+            } else {
+              updateSyncStatus('error', msg);
+              flagAsNeedsRescan(currentItem.code, msg);
+              var unknownMatch = msg.match(/Game\s*#?\s*(\d+)\s+not found/i);
+              if (unknownMatch) {
+                showBottomNotice('error', 'New game ' + unknownMatch[1] + ' is not registered', 4500);
+              } else {
+                showBottomNotice('error', msg, 3000);
+              }
+            }
           }
 
-          if (scanQueue.length > 0) processNextQueueItem();
+          processNextQueueItem();
         })
         .catch(function(err) {
+          scanQueue.shift();
           isProcessingQueue = false;
           currentItem.attempts = (currentItem.attempts || 0) + 1;
 
-          if (currentItem.attempts > MAX_RETRIES) {
-            // Retried once already - stop hammering it, flag for manual
-            // re-scan instead, and move on to the rest of the queue.
-            scanQueue.shift();
-            persistQueue();
-            flagAsNeedsRescan(currentItem.code);
-            updateSyncStatus('error', "Scan failed - added to re-scan list");
-            setTimeout(function() { updateSyncStatus('idle'); }, 3000);
-            if (scanQueue.length > 0) processNextQueueItem();
-          } else {
-            persistQueue();
-            updateSyncStatus('error', "Network Error — Retrying once...");
-            setTimeout(processNextQueueItem, 1500);
-          }
+          // Do not block newer tickets. Move this scan aside immediately and
+          // continue the normal queue. It will be tried only after five
+          // seconds of scanner inactivity.
+          deferredQueue.push(currentItem);
+          persistQueue();
+          updateSyncStatus('error', 'Scan deferred — continuing with next ticket');
+          processNextQueueItem();
         });
     }
 
-    function flagAsNeedsRescan(rawCode) {
-      // The game number is always the first 4 digits of the barcode -
-      // parseable client-side even when the backend never responded.
-      var gameNum = String(parseInt(rawCode.substring(0, 4), 10));
+    function retryDeferredNow() {
+      if (retryCycleActive || isProcessingQueue || scanQueue.length > 0 || deferredQueue.length === 0) return;
+      retryCycleActive = true;
+
+      var retryable = [];
+      deferredQueue.forEach(function(item) {
+        if ((item.attempts || 0) <= MAX_DEFERRED_ATTEMPTS) {
+          retryable.push(item);
+        } else {
+          flagAsNeedsRescan(item.code, 'Could not reach the spreadsheet after safe retries');
+        }
+      });
+      deferredQueue = [];
+      scanQueue = retryable;
+      persistQueue();
+      retryCycleActive = false;
+
+      if (scanQueue.length > 0) {
+        updateSyncStatus('syncing', 'Retrying deferred scans one at a time');
+        processNextQueueItem();
+      }
+    }
+
+    function parseBarcodeDetails(rawCode) {
+      var cleanCode = String(rawCode).replace(/\D/g, '').substring(0, 13);
+      var gameNum = String(parseInt(cleanCode.substring(0, 4), 10));
+      var bookSection = cleanCode.substring(4, 10);
+      var bookNum = String(parseInt(bookSection.substring(bookSection.length - 3), 10));
+      var ticketNum = String(parseInt(cleanCode.substring(10, 13), 10));
+      return { game: gameNum, book: bookNum, ticket: ticketNum };
+    }
+
+    function flagAsNeedsRescan(rawCode, reason) {
+      var details = parseBarcodeDetails(rawCode);
+      var gameNum = details.game;
       var price = gameMap[gameNum] || null;
 
-      // Don't add a duplicate if it's already flagged
-      var alreadyFlagged = failedScans.some(function(item) { return item.game === gameNum; });
+      var alreadyFlagged = failedScans.some(function(item) { return item.code === rawCode; });
       if (!alreadyFlagged) {
-        failedScans.push({ game: gameNum, price: price });
+        failedScans.push({
+          code: rawCode,
+          game: details.game,
+          book: details.book,
+          ticket: details.ticket,
+          price: price,
+          reason: reason || 'Needs to be scanned again'
+        });
         persistFailedScans();
       }
     }
@@ -464,22 +936,21 @@
       document.getElementById('modalReportContent').innerHTML = html;
     }
 
-    var jsonpCounter = 0;
+    const API_URL = 'https://script.google.com/macros/s/AKfycbyRZjpodVVkT3F3zClEcShpmKvu2ARX4INXqb6vI2XGqRR3xsqTsUJH0_DND-mKRXrkaA/exec';
+
     function callApi(params) {
       return new Promise(function(resolve, reject) {
-        if (!API_URL) return reject('no url');
-        var callbackName = 'jsonpCallback_' + (jsonpCounter++) + '_' + Date.now();
-
-        var timeoutId = setTimeout(function() {
+        const callbackName = '__ticketScannerCb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+        const script = document.createElement('script');
+        const timeout = setTimeout(function() {
           cleanup();
-          reject(new Error('Timeout'));
-        }, 12000);
+          reject(new Error('Backend request timed out'));
+        }, 20000);
 
         function cleanup() {
-          clearTimeout(timeoutId);
-          delete window[callbackName];
-          var el = document.getElementById(callbackName);
-          if (el && el.parentNode) el.parentNode.removeChild(el);
+          clearTimeout(timeout);
+          try { delete window[callbackName]; } catch (e) { window[callbackName] = undefined; }
+          if (script.parentNode) script.parentNode.removeChild(script);
         }
 
         window[callbackName] = function(result) {
@@ -487,29 +958,39 @@
           resolve(result);
         };
 
-        params.callback = callbackName;
-        params._t = Date.now();
-        
-        var url = API_URL + '?' + new URLSearchParams(params).toString();
-        var script = document.createElement('script');
-        script.id = callbackName;
-        script.src = url;
+        const query = new URLSearchParams();
+        Object.keys(params || {}).forEach(function(key) {
+          if (params[key] !== undefined && params[key] !== null) query.set(key, String(params[key]));
+        });
+        query.set('callback', callbackName);
+        query.set('_ts', Date.now().toString());
+
         script.onerror = function() {
           cleanup();
-          reject(new Error('Script error'));
+          reject(new Error('Could not reach Apps Script backend'));
         };
-        document.body.appendChild(script);
+        script.src = API_URL + '?' + query.toString();
+        document.head.appendChild(script);
       });
     }
 
     function handleEndDay(event) {
       if (!confirm('Close out the day? This archives all current progress.')) return;
       scanQueue = [];
+      deferredQueue = [];
+      persistQueue();
       updateSyncStatus('syncing', "Closing out day...");
 
       callApi({ action: 'endday' }).then(function(res) {
         if (res && res.success) {
-          renderDisplay(0, currentTotal);
+          failedScans = [];
+          persistFailedScans();
+          backendBaselineScanned = 0;
+          sessionInputCount = 0;
+          confirmedScanned = 0;
+          currentScanned = 0;
+          missingGames = [];
+          renderDisplay(0, currentTotal, 0, true);
           updateSyncStatus('idle');
           syncWithBackend();
         } else {
@@ -523,11 +1004,20 @@
     function handleReset(event) {
       if (!confirm('Reset back to start of day?')) return;
       scanQueue = [];
+      deferredQueue = [];
+      persistQueue();
       updateSyncStatus('syncing', "Resetting day...");
 
       callApi({ action: 'reset' }).then(function(res) {
         if (res && res.success) {
-          renderDisplay(0, currentTotal);
+          failedScans = [];
+          persistFailedScans();
+          backendBaselineScanned = 0;
+          sessionInputCount = 0;
+          confirmedScanned = 0;
+          currentScanned = 0;
+          missingGames = [];
+          renderDisplay(0, currentTotal, 0, true);
           updateSyncStatus('idle');
           syncWithBackend();
         } else {
