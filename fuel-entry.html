@@ -885,15 +885,44 @@ function renderResults(result) {
   `;
 
   result.rows.forEach(function(row) {
+    const isMidgradeBlend =
+      row.reconciliationMethod === "INDIRECT_BLEND" ||
+      String(row.physicalTank || "").toUpperCase() === "BLENDED";
+
+    const tankMovementText =
+      isMidgradeBlend
+        ? "Via 87/93"
+        : Number(row.tankMovement).toFixed(2);
+
+    const varianceText =
+      isMidgradeBlend || row.variance === null || row.variance === undefined
+        ? "N/A"
+        : Number(row.variance).toFixed(2);
+
     html += `
       <tr>
         <td>${row.grade}</td>
-        <td>${Number(row.tankMovement).toFixed(2)}</td>
+        <td>${tankMovementText}</td>
         <td>${Number(row.posGallons).toFixed(2)}</td>
-        <td>${Number(row.variance).toFixed(2)}</td>
+        <td>${varianceText}</td>
         <td>$${Number(row.grossProfit).toFixed(2)}</td>
       </tr>
     `;
+
+    if (isMidgradeBlend) {
+      html += `
+        <tr>
+          <td colspan="5" style="text-align:left; padding-top:0; color:#475569;">
+            <strong>Midgrade blend reconciliation:</strong>
+            ${Number(row.blendRegularGallons || 0).toFixed(2)} gal from 87 Regular
+            + ${Number(row.blendPremiumGallons || 0).toFixed(2)} gal from 93 Premium
+            = ${Number(row.blendedPhysicalDraw || row.posGallons || 0).toFixed(2)} gal blended draw.
+            <br>
+            <strong>Status:</strong> ${row.status || ""}
+          </td>
+        </tr>
+      `;
+    }
   });
 
   html += `
