@@ -377,7 +377,7 @@
         <circle class="progress-ring" id="ringFill" cx="115" cy="115" r="105"></circle>
       </svg>
       <div class="ring-text">
-        <div id="countDisplay">0 / 42</div>
+        <div id="countDisplay">0 / 43</div>
       </div>
     </div>
 
@@ -443,7 +443,7 @@
     var confirmedScanned = 0;
     var backendBaselineScanned = 0;
     var sessionInputCount = 0;
-    var currentTotal = 65; // matches the current 8-category sheet layout
+    var currentTotal = 43; // safe startup fallback; backend immediately supplies authoritative total
     var completionShown = false;
     var noticeTimer = null;
     var noticeLockedUntil = 0;
@@ -660,15 +660,30 @@
           backendBaselineScanned = Number(result.scannedToday) || 0;
           confirmedScanned = backendBaselineScanned;
           currentScanned = backendBaselineScanned;
-          var isComplete = renderDisplay(confirmedScanned, result.totalGames || 65, confirmedScanned, true);
+          var isComplete = renderDisplay(confirmedScanned, result.totalGames || currentTotal || 43, confirmedScanned, true);
           if (isComplete) updateSyncStatus('idle', 'All scans confirmed by backend');
           gameMap = result.gameMap || gameMap;
           localStorage.setItem('gameMapCache', JSON.stringify(gameMap));
         }
         armScanner();
       }).catch(function() {
-        // Cached data and the local queue remain usable; scanning stays armed.
-        armScanner();
+        // If bootstrap fails for any reason, immediately fall back to the
+        // progress endpoint instead of leaving the screen at a fake 0 count.
+        callApi({ action: 'progress' }).then(function(progressResult) {
+          if (progressResult && progressResult.success) {
+            confirmedScanned = Number(progressResult.scannedToday) || 0;
+            currentScanned = confirmedScanned;
+            renderDisplay(
+              confirmedScanned,
+              progressResult.totalGames || currentTotal || 43,
+              confirmedScanned,
+              true
+            );
+          }
+          armScanner();
+        }).catch(function() {
+          armScanner();
+        });
       });
     }
 
@@ -678,7 +693,7 @@
         if (result && result.success && scanQueue.length === 0 && deferredQueue.length === 0) {
           confirmedScanned = Number(result.scannedToday) || 0;
           currentScanned = confirmedScanned;
-          var isComplete = renderDisplay(confirmedScanned, result.totalGames || 65, confirmedScanned, true);
+          var isComplete = renderDisplay(confirmedScanned, result.totalGames || currentTotal || 43, confirmedScanned, true);
           updateSyncStatus('idle', isComplete ? 'All scans confirmed by backend' : 'Scanner Ready — Scan Now');
           if (currentScanned >= 35) refreshMissingGames(true);
         }
