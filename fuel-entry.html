@@ -117,6 +117,72 @@
       width: 100%;
     }
 
+
+    .delivery-event {
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 14px;
+      background: #f8fafc;
+    }
+
+    .delivery-event-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .delivery-event-title {
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    .delivery-product-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    .delivery-product-grid input {
+      width: 100%;
+    }
+
+    .limit-note {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 5px;
+    }
+
+    .tank-limit-box {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      background: #f1f5f9;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .secondary-btn {
+      border: 1px solid #cbd5e1;
+      background: white;
+      border-radius: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .remove-delivery-btn {
+      border: 0;
+      background: transparent;
+      color: #b91c1c;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
     @media (max-width: 700px) {
       .grade-grid {
         grid-template-columns: 1fr;
@@ -283,6 +349,7 @@
         type="number"
         step="0.001"
         id="regularBegin"
+        max="10435"
         placeholder="Beginning gal"
       >
 
@@ -290,6 +357,7 @@
         type="number"
         step="0.001"
         id="regularEnd"
+        max="10435"
         placeholder="Ending gal"
       >
     </div>
@@ -301,6 +369,7 @@
         type="number"
         step="0.001"
         id="premiumBegin"
+        max="5307"
         placeholder="Beginning gal"
       >
 
@@ -308,6 +377,7 @@
         type="number"
         step="0.001"
         id="premiumEnd"
+        max="5307"
         placeholder="Ending gal"
       >
     </div>
@@ -319,6 +389,7 @@
         type="number"
         step="0.001"
         id="dieselBegin"
+        max="3618"
         placeholder="Beginning gal"
       >
 
@@ -326,6 +397,7 @@
         type="number"
         step="0.001"
         id="dieselEnd"
+        max="3618"
         placeholder="Ending gal"
       >
     </div>
@@ -334,126 +406,42 @@
 
   <!-- DELIVERY -->
   <div class="card">
-    <h2 class="section-title">Fuel Delivery</h2>
+    <h2 class="section-title">Fuel Deliveries</h2>
 
     <div class="form-group">
       <label for="deliveryToday">
         Was fuel delivered during this business day?
       </label>
 
-      <select
-        id="deliveryToday"
-        onchange="toggleDelivery()"
-      >
+      <select id="deliveryToday" onchange="toggleDelivery()">
         <option value="no">No</option>
         <option value="yes">Yes</option>
       </select>
     </div>
 
-    <div
-      id="deliveryFields"
-      class="delivery-fields"
-    >
+    <div class="tank-limit-box">
+      <strong>90% operating inventory limits</strong><br>
+      87 Regular: 10,435 gal &nbsp;|&nbsp;
+      93 Premium / Super: 5,307 gal &nbsp;|&nbsp;
+      Diesel: 3,618 gal
+    </div>
 
-      <div class="grid-2">
+    <div id="deliveryFields" class="delivery-fields">
+      <div id="deliveryList"></div>
 
-        <div class="form-group">
-          <label for="deliveryProduct">Product</label>
+      <button
+        type="button"
+        class="secondary-btn"
+        onclick="addDeliveryEvent()"
+        style="margin-top:14px;"
+      >
+        + Add Another Delivery
+      </button>
 
-          <select id="deliveryProduct">
-            <option value="">Select product</option>
-            <option value="87 Regular">87 Regular</option>
-            <option value="93 Premium">93 Premium</option>
-            <option value="Diesel">Diesel</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="deliveryGallons">
-            Gallons Delivered
-          </label>
-
-          <input
-            type="number"
-            step="0.001"
-            id="deliveryGallons"
-          >
-        </div>
-
-        <div class="form-group">
-          <label for="deliveryDate">
-            Delivery Date
-          </label>
-
-          <input
-            type="date"
-            id="deliveryDate"
-          >
-        </div>
-
-        <div class="form-group">
-          <label for="deliveryTime">
-            Delivery Time
-          </label>
-
-          <input
-            type="time"
-            id="deliveryTime"
-          >
-        </div>
-
-        <div class="form-group">
-          <label for="supplier">
-            Supplier
-          </label>
-
-          <input
-            type="text"
-            id="supplier"
-          >
-        </div>
-
-        <div class="form-group">
-          <label for="bolNumber">
-            BOL Number
-          </label>
-
-          <input
-            type="text"
-            id="bolNumber"
-          >
-        </div>
-
-        <div class="form-group">
-          <label for="deliveryCost">
-            Delivery Cost / Gallon
-          </label>
-
-          <input
-            type="number"
-            step="0.0001"
-            id="deliveryCost"
-          >
-        </div>
-
+      <div class="upload-note" style="margin-top:12px;">
+        Each delivery event can include Regular, Premium/Super, Diesel, or any combination.
+        Add as many separate truck/BOL deliveries as needed for the business day.
       </div>
-
-      <div class="upload-box">
-        <label for="bolFile">
-          BOL / Delivery Document
-        </label>
-
-        <input
-          type="file"
-          id="bolFile"
-          accept=".pdf,image/*"
-        >
-
-        <div class="upload-note">
-          PDF or photograph accepted.
-        </div>
-      </div>
-
     </div>
   </div>
 
@@ -530,214 +518,361 @@
 
 <script>
 
+const TANK_LIMITS = {
+  regular: 10435,
+  premium: 5307,
+  diesel: 3618
+};
+
+let deliveryCounter = 0;
+
+
 function toggleDelivery() {
+  const value = document.getElementById("deliveryToday").value;
+  const fields = document.getElementById("deliveryFields");
 
-  const value =
-    document.getElementById("deliveryToday").value;
+  fields.style.display = value === "yes" ? "block" : "none";
 
-  document.getElementById("deliveryFields").style.display =
-    value === "yes"
-      ? "block"
-      : "none";
+  if (value === "yes" && document.querySelectorAll(".delivery-event").length === 0) {
+    addDeliveryEvent();
+  }
+}
+
+
+function addDeliveryEvent() {
+  deliveryCounter += 1;
+
+  const container = document.getElementById("deliveryList");
+  const wrapper = document.createElement("div");
+
+  wrapper.className = "delivery-event";
+  wrapper.dataset.deliveryId = String(deliveryCounter);
+
+  wrapper.innerHTML = `
+    <div class="delivery-event-header">
+      <div class="delivery-event-title">
+        Delivery #${deliveryCounter}
+      </div>
+
+      <button
+        type="button"
+        class="remove-delivery-btn"
+        onclick="removeDeliveryEvent(this)"
+      >
+        Remove
+      </button>
+    </div>
+
+    <div class="grid-2">
+      <div class="form-group">
+        <label>Delivery Date</label>
+        <input type="date" class="delivery-date">
+      </div>
+
+      <div class="form-group">
+        <label>Delivery Time</label>
+        <input type="time" class="delivery-time">
+      </div>
+
+      <div class="form-group">
+        <label>Supplier</label>
+        <input type="text" class="delivery-supplier">
+      </div>
+
+      <div class="form-group">
+        <label>BOL Number</label>
+        <input type="text" class="delivery-bol">
+      </div>
+    </div>
+
+    <div class="delivery-product-grid">
+      <strong>87 Regular</strong>
+      <div>
+        <input
+          type="number"
+          min="0"
+          max="${TANK_LIMITS.regular}"
+          step="0.001"
+          class="delivery-regular"
+          placeholder="Gallons delivered"
+        >
+        <div class="limit-note">Single delivery maximum: 10,435 gal</div>
+      </div>
+    </div>
+
+    <div class="delivery-product-grid">
+      <strong>93 Premium / Super</strong>
+      <div>
+        <input
+          type="number"
+          min="0"
+          max="${TANK_LIMITS.premium}"
+          step="0.001"
+          class="delivery-premium"
+          placeholder="Gallons delivered"
+        >
+        <div class="limit-note">Single delivery maximum: 5,307 gal</div>
+      </div>
+    </div>
+
+    <div class="delivery-product-grid">
+      <strong>Diesel</strong>
+      <div>
+        <input
+          type="number"
+          min="0"
+          max="${TANK_LIMITS.diesel}"
+          step="0.001"
+          class="delivery-diesel"
+          placeholder="Gallons delivered"
+        >
+        <div class="limit-note">Single delivery maximum: 3,618 gal</div>
+      </div>
+    </div>
+
+    <div class="upload-box" style="margin-top:16px; margin-bottom:0;">
+      <label>BOL / Delivery Document</label>
+      <input type="file" class="delivery-bol-file" accept=".pdf,image/*">
+      <div class="upload-note">
+        File selection is recorded in the browser for now. Drive upload will be connected later.
+      </div>
+    </div>
+  `;
+
+  container.appendChild(wrapper);
+}
+
+
+function removeDeliveryEvent(button) {
+  const eventBox = button.closest(".delivery-event");
+  if (eventBox) eventBox.remove();
+
+  renumberDeliveryEvents();
+}
+
+
+function renumberDeliveryEvents() {
+  document.querySelectorAll(".delivery-event").forEach(function(box, index) {
+    const title = box.querySelector(".delivery-event-title");
+    if (title) title.textContent = "Delivery #" + (index + 1);
+  });
 }
 
 
 function num(id) {
+  return Number(document.getElementById(id).value || 0);
+}
 
-  return Number(
-    document.getElementById(id).value || 0
-  );
+
+function valueFrom(box, selector) {
+  const element = box.querySelector(selector);
+  return element ? element.value : "";
+}
+
+
+function numberFrom(box, selector) {
+  const raw = valueFrom(box, selector);
+  return raw === "" ? 0 : Number(raw);
+}
+
+
+function collectDeliveries() {
+  if (document.getElementById("deliveryToday").value !== "yes") {
+    return [];
+  }
+
+  const deliveries = [];
+
+  document.querySelectorAll(".delivery-event").forEach(function(box) {
+    const regularGallons = numberFrom(box, ".delivery-regular");
+    const premiumGallons = numberFrom(box, ".delivery-premium");
+    const dieselGallons = numberFrom(box, ".delivery-diesel");
+
+    const hasFuel =
+      regularGallons > 0 ||
+      premiumGallons > 0 ||
+      dieselGallons > 0;
+
+    if (!hasFuel) return;
+
+    deliveries.push({
+      deliveryDate: valueFrom(box, ".delivery-date"),
+      deliveryTime: valueFrom(box, ".delivery-time"),
+      supplier: valueFrom(box, ".delivery-supplier"),
+      bolNumber: valueFrom(box, ".delivery-bol"),
+      regularGallons: regularGallons,
+      premiumGallons: premiumGallons,
+      dieselGallons: dieselGallons
+    });
+  });
+
+  return deliveries;
+}
+
+
+function validateClientTankLimits(deliveries) {
+  const checks = [
+    ["regularBegin", TANK_LIMITS.regular, "Regular beginning inventory"],
+    ["regularEnd", TANK_LIMITS.regular, "Regular ending inventory"],
+    ["premiumBegin", TANK_LIMITS.premium, "Premium beginning inventory"],
+    ["premiumEnd", TANK_LIMITS.premium, "Premium ending inventory"],
+    ["dieselBegin", TANK_LIMITS.diesel, "Diesel beginning inventory"],
+    ["dieselEnd", TANK_LIMITS.diesel, "Diesel ending inventory"]
+  ];
+
+  for (const check of checks) {
+    const value = num(check[0]);
+
+    if (value > check[1]) {
+      return check[2] + " exceeds the 90% operating limit of " +
+        check[1].toLocaleString() + " gallons.";
+    }
+  }
+
+  for (let i = 0; i < deliveries.length; i++) {
+    const d = deliveries[i];
+
+    if (d.regularGallons > TANK_LIMITS.regular) {
+      return "Delivery #" + (i + 1) +
+        " Regular gallons exceed 10,435 gallons.";
+    }
+
+    if (d.premiumGallons > TANK_LIMITS.premium) {
+      return "Delivery #" + (i + 1) +
+        " Premium gallons exceed 5,307 gallons.";
+    }
+
+    if (d.dieselGallons > TANK_LIMITS.diesel) {
+      return "Delivery #" + (i + 1) +
+        " Diesel gallons exceed 3,618 gallons.";
+    }
+
+    if (!d.deliveryDate) {
+      return "Delivery #" + (i + 1) + " needs a delivery date.";
+    }
+
+    if (!d.bolNumber) {
+      return "Delivery #" + (i + 1) + " needs a BOL number.";
+    }
+  }
+
+  return "";
 }
 
 
 function reconcileFuel() {
-
-  const businessDate =
-    document.getElementById("businessDate").value;
+  const businessDate = document.getElementById("businessDate").value;
 
   if (!businessDate) {
-
-    showStatus(
-      "Please select the business date.",
-      "error"
-    );
-
+    showStatus("Please select the business date.", "error");
     return;
   }
 
+  const deliveryToday =
+    document.getElementById("deliveryToday").value;
+
+  const deliveries = collectDeliveries();
+
+  if (deliveryToday === "yes" && deliveries.length === 0) {
+    showStatus(
+      "Delivery is marked Yes. Enter gallons for at least one product.",
+      "error"
+    );
+    return;
+  }
+
+  const tankLimitError = validateClientTankLimits(deliveries);
+
+  if (tankLimitError) {
+    showStatus(tankLimitError, "error");
+    return;
+  }
 
   const payload = {
-
     action: "reconcilefuel",
-
     businessDate: businessDate,
 
-    regularGallons:
-      num("regularGallons"),
+    regularGallons: num("regularGallons"),
+    regularSales: num("regularSales"),
 
-    regularSales:
-      num("regularSales"),
+    midGallons: num("midGallons"),
+    midSales: num("midSales"),
 
-    midGallons:
-      num("midGallons"),
+    premiumGallons: num("premiumGallons"),
+    premiumSales: num("premiumSales"),
 
-    midSales:
-      num("midSales"),
+    dieselGallons: num("dieselGallons"),
+    dieselSales: num("dieselSales"),
 
-    premiumGallons:
-      num("premiumGallons"),
+    regularBegin: num("regularBegin"),
+    regularEnd: num("regularEnd"),
 
-    premiumSales:
-      num("premiumSales"),
+    premiumBegin: num("premiumBegin"),
+    premiumEnd: num("premiumEnd"),
 
-    dieselGallons:
-      num("dieselGallons"),
+    dieselBegin: num("dieselBegin"),
+    dieselEnd: num("dieselEnd"),
 
-    dieselSales:
-      num("dieselSales"),
+    deliveryToday: deliveryToday,
 
-    regularBegin:
-      num("regularBegin"),
+    // JSON string is safe for the current JSONP apiCall / URLSearchParams layer.
+    deliveries: JSON.stringify(deliveries),
 
-    regularEnd:
-      num("regularEnd"),
-
-    premiumBegin:
-      num("premiumBegin"),
-
-    premiumEnd:
-      num("premiumEnd"),
-
-    dieselBegin:
-      num("dieselBegin"),
-
-    dieselEnd:
-      num("dieselEnd"),
-
-    deliveryToday:
-      document.getElementById(
-        "deliveryToday"
-      ).value,
-
-    deliveryProduct:
-      document.getElementById(
-        "deliveryProduct"
-      ).value,
-
-    deliveryGallons:
-      num("deliveryGallons"),
-
-    deliveryDate:
-      document.getElementById(
-        "deliveryDate"
-      ).value,
-
-    deliveryTime:
-      document.getElementById(
-        "deliveryTime"
-      ).value,
-
-    supplier:
-      document.getElementById(
-        "supplier"
-      ).value,
-
-    bolNumber:
-      document.getElementById(
-        "bolNumber"
-      ).value,
-
-    deliveryCost:
-      num("deliveryCost"),
-
-    regularCost:
-      num("regularCost"),
-
-    premiumCost:
-      num("premiumCost"),
-
-    dieselCost:
-      num("dieselCost")
+    regularCost: num("regularCost"),
+    premiumCost: num("premiumCost"),
+    dieselCost: num("dieselCost")
   };
 
-
-  showStatus(
-    "Sending fuel data to backend...",
-    "info"
-  );
-
+  showStatus("Sending fuel data to backend...", "info");
 
   apiCall(payload)
-
     .then(function(result) {
-
       if (!result || !result.success) {
-
         showStatus(
           result && result.message
             ? result.message
             : "Fuel reconciliation failed.",
           "error"
         );
-
         return;
       }
 
+      const savedMessage =
+        result.savedToFuelDaily
+          ? " Fuel Daily was saved."
+          : "";
 
       showStatus(
-        "Fuel reconciliation completed.",
+        "Fuel reconciliation completed." + savedMessage,
         "success"
       );
 
-
       renderResults(result);
-
     })
-
     .catch(function(error) {
-
       console.error(error);
-
-      showStatus(
-        "Unable to connect to the backend.",
-        "error"
-      );
-
+      showStatus("Unable to connect to the backend.", "error");
     });
-
 }
 
 
 function showStatus(message, type) {
-
-  const box =
-    document.getElementById("statusBox");
-
-  box.className =
-    "status-box status-" + type;
-
-  box.textContent =
-    message;
+  const box = document.getElementById("statusBox");
+  box.className = "status-box status-" + type;
+  box.textContent = message;
 }
 
 
 function renderResults(result) {
-
-  if (!result.rows) {
-    return;
-  }
-
+  if (!result.rows) return;
 
   let html = `
-
     <h2 style="margin-top:24px;">
       Reconciliation Results
     </h2>
 
     <table class="result-table">
-
       <thead>
-
         <tr>
           <th>Grade</th>
           <th>Tank Movement</th>
@@ -745,68 +880,28 @@ function renderResults(result) {
           <th>Variance</th>
           <th>Gross Profit</th>
         </tr>
-
       </thead>
-
       <tbody>
-
   `;
-
 
   result.rows.forEach(function(row) {
-
     html += `
-
       <tr>
-
-        <td>
-          ${row.grade}
-        </td>
-
-        <td>
-          ${Number(
-            row.tankMovement
-          ).toFixed(2)}
-        </td>
-
-        <td>
-          ${Number(
-            row.posGallons
-          ).toFixed(2)}
-        </td>
-
-        <td>
-          ${Number(
-            row.variance
-          ).toFixed(2)}
-        </td>
-
-        <td>
-          $${Number(
-            row.grossProfit
-          ).toFixed(2)}
-        </td>
-
+        <td>${row.grade}</td>
+        <td>${Number(row.tankMovement).toFixed(2)}</td>
+        <td>${Number(row.posGallons).toFixed(2)}</td>
+        <td>${Number(row.variance).toFixed(2)}</td>
+        <td>$${Number(row.grossProfit).toFixed(2)}</td>
       </tr>
-
     `;
-
   });
 
-
   html += `
-
       </tbody>
-
     </table>
-
   `;
 
-
-  document.getElementById(
-    "results"
-  ).innerHTML = html;
-
+  document.getElementById("results").innerHTML = html;
 }
 
 </script>
